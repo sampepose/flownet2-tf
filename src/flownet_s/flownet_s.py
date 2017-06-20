@@ -15,8 +15,17 @@ class FlowNetS(Net):
 
     def model(self, inputs, training_schedule):
         _, height, width, _ = inputs['input_a'].shape.as_list()
+        stacked = False
         with tf.name_scope('FlowNetS'):
-            concat_inputs = tf.concat([inputs['input_a'], inputs['input_b']], axis=3)
+            if 'warped' in inputs and 'flow' in inputs and 'brightness_error' in inputs:
+                stacked = True
+                concat_inputs = tf.concat([inputs['input_a'],
+                                           inputs['input_b'],
+                                           inputs['warped'],
+                                           inputs['flow'],
+                                           inputs['brightness_error']], axis=3)
+            else:
+                concat_inputs = tf.concat([inputs['input_a'], inputs['input_b']], axis=3)
             with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],
                                 # He (aka MSRA) weight initialization
                                 weights_initializer=slim.variance_scaling_initializer(),
@@ -102,6 +111,10 @@ class FlowNetS(Net):
                     flow = tf.image.resize_bilinear(flow,
                                                     tf.stack([height, width]),
                                                     align_corners=True)
+                    if not stacked:
+                        if self.mode == Mode.TEST:
+                            # TODO: This isn't right. It needs a 'diagonal' weight filler?
+                            flow = slim.conv2d(flow, 2, 1, padding='VALID', scope="scale_conv1", activation_fn=None)
 
                     return {
                         'predict_flow6': predict_flow6,
