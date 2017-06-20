@@ -5,7 +5,7 @@ import tensorflow as tf
 slim = tf.contrib.slim
 
 _downsample = tf.load_op_library(
-        tf.resource_loader.get_path_to_datafile("../ops/build/downsample.so"))
+    tf.resource_loader.get_path_to_datafile("../ops/build/downsample.so"))
 
 
 class FlowNetS(Net):
@@ -114,7 +114,8 @@ class FlowNetS(Net):
                     if not stacked:
                         if self.mode == Mode.TEST:
                             # TODO: This isn't right. It needs a 'diagonal' weight filler?
-                            flow = slim.conv2d(flow, 2, 1, padding='VALID', scope="scale_conv1", activation_fn=None)
+                            flow = slim.conv2d(flow, 2, 1, padding='VALID',
+                                               scope="scale_conv1", activation_fn=None)
 
                     return {
                         'predict_flow6': predict_flow6,
@@ -154,7 +155,7 @@ class FlowNetS(Net):
         size = [predict_flow3.shape[1], predict_flow3.shape[2]]
         downsampled_flow3 = _downsample.downsample(flow, size)
         losses.append(average_endpoint_error(downsampled_flow3, predict_flow3))
-
+ 
         # L2 loss between predict_flow2, blob43 (weighted w/ 0.005)
         predict_flow2 = predictions['predict_flow2']
         size = [predict_flow2.shape[1], predict_flow2.shape[2]]
