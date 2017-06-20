@@ -11,7 +11,7 @@ class FlowNetS(Net):
     def __init__(self, mode=Mode.TRAIN, debug=False):
         super(FlowNetS, self).__init__(mode=mode, debug=debug)
 
-    def model(self, inputs):
+    def model(self, inputs, training_schedule):
         _, height, width, _ = inputs['input_a'].shape.as_list()
         with tf.name_scope('FlowNetS'):
             concat_inputs = tf.concat([inputs['input_a'], inputs['input_b']], axis=3)

@@ -19,7 +19,7 @@ class Net(object):
         self.debug = debug
 
     @abc.abstractmethod
-    def model(self, inputs):
+    def model(self, inputs, training_schedule):
         """
         Defines the model and returns a tuple of Tensors needed for calculating the loss.
         """
@@ -33,22 +33,25 @@ class Net(object):
         """
         return
 
-    def train(self, log_dir, input_a, input_b, flow):
+    def train(self, log_dir, training_schedule, input_a, input_b, flow):
         tf.summary.image("image_a", tf.expand_dims(input_a[2, :, :, :],0), max_outputs=1)
         tf.summary.image("image_b", tf.expand_dims(input_b[2, :, :, :],0), max_outputs=1)
 
-        self.learning_rate = 0.001
+        self.learning_rate = tf.train.piecewise_constant(
+            self.global_step,
+            [tf.cast(v, tf.int64) for v in training_schedule['step_values']],
+            training_schedule['learning_rates'])
 
         optimizer = tf.train.AdamOptimizer(
             self.learning_rate,
-            0.9,
-            0.999)
+            training_schedule['momentum'],
+            training_schedule['momentum2'])
 
         inputs = {
             'input_a': input_a,
             'input_b': input_b,
         }
-        predictions = self.model(inputs)
+        predictions = self.model(inputs, training_schedule)
         total_loss = self.loss(flow, predictions)
         tf.summary.scalar('loss', total_loss)
 
@@ -76,5 +79,6 @@ class Net(object):
                 log_dir,
                 # session_config=tf.ConfigProto(allow_soft_placement=True),
                 global_step=self.global_step,
-                save_summaries_secs=60
+                save_summaries_secs=60,
+                number_of_steps=training_schedule['max_iter']
             )
