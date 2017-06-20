@@ -1,3 +1,6 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.o
+*.so
+*.so.dSYM
