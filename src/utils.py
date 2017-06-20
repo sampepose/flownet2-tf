@@ -9,6 +9,24 @@ def LeakyReLU(x, leak=0.1, name="lrelu"):
         return f1 * x + f2 * abs(x)
 
 
+def average_endpoint_error(labels, predictions):
+    """
+    Given labels and predictions of size (N, H, W, 2), calculates average endpoint error:
+        sqrt[sum_across_channels{(X - Y)^2}]
+    """
+    num_samples = predictions.shape.as_list()[0]
+    with tf.name_scope(None, "average_endpoint_error", (predictions, labels)) as scope:
+        predictions = tf.to_float(predictions)
+        labels = tf.to_float(labels)
+        predictions.get_shape().assert_is_compatible_with(labels.get_shape())
+
+        squared_difference = tf.square(tf.subtract(predictions, labels))
+        # sum across channels: sum[(X - Y)^2] -> N, H, W, 1
+        loss = tf.reduce_sum(squared_difference, 3, keep_dims=True)
+        loss = tf.sqrt(loss)
+        return tf.reduce_sum(loss) / num_samples
+
+
 def pad(tensor, num=1):
     """
     Pads the given tensor along the height and width dimensions with `num` 0s on each side
