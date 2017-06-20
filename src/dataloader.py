@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from .preprocessing.preprocess import preprocess, flow_difference
 import tensorflow as tf
 slim = tf.contrib.slim
 
@@ -134,4 +135,26 @@ def load_batch(dataset_config, split_name, global_step):
             num_threads=num_threads,
             allow_smaller_final_batch=False)
 
-        return image_as, image_bs, flows
+        with tf.device('/gpu:0'):
+            # Extract preprocessing parameters for each image.
+            params_a = dataset_config['PREPROCESS']['image_a']
+            params_b = dataset_config['PREPROCESS']['image_b']
+
+            # Apply preprocessing to batch of images
+            # Image A is preprocessed using randomly generated transforms as defined in the parameters.
+            # Image B is processed using the same transforms, plus any extra transforms defined for B.
+
+            image_as, coeffs_a = preprocess(image_as,
+                                            params_a,
+                                            global_step,
+                                            dataset_config['BATCH_SIZE'])
+            image_bs, coeffs_b = preprocess(image_bs,
+                                            params_b,
+                                            global_step,
+                                            dataset_config['BATCH_SIZE'],
+                                            coeffs_a)
+
+            crop = [params_a['crop_height'], params_a['crop_width']]
+            flows = flow_difference(flows, coeffs_a, coeffs_b, crop)
+
+            return image_as, image_bs, flows

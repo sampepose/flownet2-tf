@@ -5,6 +5,9 @@ from .AugmentationCoeff import (
 import tensorflow as tf
 from tensorflow.contrib.image import angles_to_projective_transforms, compose_transforms
 
+_preprocessing_ops = tf.load_op_library(
+        tf.resource_loader.get_path_to_datafile("../ops/build/preprocessing.so"))
+
 
 # TODO: def compute_chromatic_eigenspace(images, params):
 #     chromatic_eigen_space = {
@@ -222,6 +225,22 @@ def inverse_transformation_matrix(matrix):
                           h], 1)
 
 
+def flow_difference(flows, coeffsA, coeffsB, crop):
+    with tf.name_scope('flow_difference'):
+        # Get the spatial transformation matrix applied to images A
+        spatial_trans_mat_a = compute_spatial_transformation_matrix(coeffsA, flows)
+
+        # Get the inverse transformation matrix applied to images B
+        spatial_trans_mat_b = compute_spatial_transformation_matrix(coeffsA, flows)
+        inv_spatial_trans_mat_b = inverse_transformation_matrix(spatial_trans_mat_b)
+
+        # Invoke CPP kernel
+        return _preprocessing_ops.flow_augmentation(flows,
+                                                    spatial_trans_mat_a,
+                                                    inv_spatial_trans_mat_b,
+                                                    crop)
+
+
 def preprocess(images, params, global_step, batch_size, old_coeffs=None):
     with tf.name_scope('preprocess'):
         _, height, width, _ = images.shape.as_list()
@@ -252,7 +271,9 @@ def preprocess(images, params, global_step, batch_size, old_coeffs=None):
 
         spatial_transformation_matrix = compute_spatial_transformation_matrix(coeffs, images)
         crop = [int(params['crop_height']), int(params['crop_width'])]
-        # TODO: Apply transformation matrix!
+        outImages = _preprocessing_ops.spatial_transform(images,
+                                                         spatial_transformation_matrix,
+                                                         crop)
 
         # TODO:
         # if has_chromatic_eigen_augmentation:
@@ -260,9 +281,9 @@ def preprocess(images, params, global_step, batch_size, old_coeffs=None):
         #       image - eigen->mean_rgb{0,1,2} for each channel
 
         if len(set(DEFAULT_CHROMATIC_TYPES.keys()).intersection(params.keys())) != 0:
-            images = color_contrast_augmentation(coeffs, images)
+            outImages = color_contrast_augmentation(coeffs, outImages)
 
         if len(set(DEFAULT_EFFECT_TYPES.keys()).intersection(params.keys())) != 0:
-            images = effects_augmentation(coeffs, images)
+            outImages = effects_augmentation(coeffs, outImages)
 
-        return images, coeffs
+        return outImages, coeffs
