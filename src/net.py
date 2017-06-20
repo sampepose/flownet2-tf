@@ -1,6 +1,7 @@
 import abc
 from enum import Enum
 import tensorflow as tf
+from .flowlib import flow_to_image
 import numpy as np
 slim = tf.contrib.slim
 
@@ -54,6 +55,18 @@ class Net(object):
         predictions = self.model(inputs, training_schedule)
         total_loss = self.loss(flow, predictions)
         tf.summary.scalar('loss', total_loss)
+
+        # Show the generated flow in TensorBoard
+        if 'flow' in predictions:
+            pred_flow_0 = predictions['flow'][2, :, :, :]
+            pred_flow_0 = tf.py_func(flow_to_image, [pred_flow_0], tf.uint8)
+            pred_flow_0 = tf.expand_dims(pred_flow_0, 0)
+            tf.summary.image('pred_flow', pred_flow_0, max_outputs=1)
+
+        true_flow_0 = flow[2, :, :, :]
+        true_flow_0 = tf.py_func(flow_to_image, [true_flow_0], tf.uint8)
+        true_flow_0 = tf.expand_dims(true_flow_0, 0)
+        tf.summary.image('true_flow', true_flow_0, max_outputs=1)
 
         train_op = slim.learning.create_train_op(
             total_loss,
