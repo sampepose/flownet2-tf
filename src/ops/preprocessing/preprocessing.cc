@@ -29,4 +29,12 @@ REGISTER_OP("SpatialTransform")
     .Output("transformed_images: dtype")
     .SetShapeFn(SetOutputToSizedImage);
 
+REGISTER_OP("FlowAugmentation")
+    .Input("flows: float32")
+    .Input("transforms_a: float32")
+    .Input("transforms_b_inv: float32")
+    .Attr("crop: list(int) >= 2")
+    .Output("transformed_flows: float32")
+    .SetShapeFn(SetOutputToSizedImage);
+
 }  // namespace tensorflow
