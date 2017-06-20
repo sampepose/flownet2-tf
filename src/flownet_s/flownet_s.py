@@ -4,6 +4,8 @@ import math
 import tensorflow as tf
 slim = tf.contrib.slim
 
+_downsample = tf.load_op_library(
+        tf.resource_loader.get_path_to_datafile("../ops/build/downsample.so"))
 
 
 class FlowNetS(Net):
@@ -118,53 +120,32 @@ class FlowNetS(Net):
 
         # L2 loss between predict_flow6, blob23 (weighted w/ 0.32)
         predict_flow6 = predictions['predict_flow6']
-        hradius = math.ceil(INPUT_HEIGHT / predict_flow6.shape[1].value)
-        wradius = math.ceil(INPUT_WIDTH / predict_flow6.shape[2].value)
-        # TODO: Look at their code. They didn't use an average pool.
-        downsampled_flow6 = tf.nn.avg_pool(flow, [1, hradius, wradius, 1],
-                                           strides=[1, hradius, wradius, 1],
-                                           padding='SAME',
-                                           name='downsampled_flow6')
+        size = [predict_flow6.shape[1], predict_flow6.shape[2]]
+        downsampled_flow6 = _downsample.downsample(flow, size)
         losses.append(average_endpoint_error(downsampled_flow6, predict_flow6))
 
         # L2 loss between predict_flow5, blob28 (weighted w/ 0.08)
         predict_flow5 = predictions['predict_flow5']
-        hradius = math.ceil(INPUT_HEIGHT / predict_flow5.shape[1].value)
-        wradius = math.ceil(INPUT_WIDTH / predict_flow5.shape[2].value)
-        downsampled_flow5 = tf.nn.avg_pool(flow, [1, hradius, wradius, 1],
-                                           strides=[1, hradius, wradius, 1],
-                                           padding='SAME',
-                                           name='downsampled_flow5')
+        size = [predict_flow5.shape[1], predict_flow5.shape[2]]
+        downsampled_flow5 = _downsample.downsample(flow, size)
         losses.append(average_endpoint_error(downsampled_flow5, predict_flow5))
 
         # L2 loss between predict_flow4, blob33 (weighted w/ 0.02)
         predict_flow4 = predictions['predict_flow4']
-        hradius = math.ceil(INPUT_HEIGHT / predict_flow4.shape[1].value)
-        wradius = math.ceil(INPUT_WIDTH / predict_flow4.shape[2].value)
-        downsampled_flow4 = tf.nn.avg_pool(flow, [1, hradius, wradius, 1],
-                                           strides=[1, hradius, wradius, 1],
-                                           padding='SAME',
-                                           name='downsampled_flow4')
+        size = [predict_flow4.shape[1], predict_flow4.shape[2]]
+        downsampled_flow4 = _downsample.downsample(flow, size)
         losses.append(average_endpoint_error(downsampled_flow4, predict_flow4))
 
         # L2 loss between predict_flow3, blob38 (weighted w/ 0.01)
         predict_flow3 = predictions['predict_flow3']
-        hradius = math.ceil(INPUT_HEIGHT / predict_flow3.shape[1].value)
-        wradius = math.ceil(INPUT_WIDTH / predict_flow3.shape[2].value)
-        downsampled_flow3 = tf.nn.avg_pool(flow, [1, hradius, wradius, 1],
-                                           strides=[1, hradius, wradius, 1],
-                                           padding='SAME',
-                                           name='downsampled_flow3')
+        size = [predict_flow3.shape[1], predict_flow3.shape[2]]
+        downsampled_flow3 = _downsample.downsample(flow, size)
         losses.append(average_endpoint_error(downsampled_flow3, predict_flow3))
 
         # L2 loss between predict_flow2, blob43 (weighted w/ 0.005)
         predict_flow2 = predictions['predict_flow2']
-        hradius = math.ceil(INPUT_HEIGHT / predict_flow2.shape[1].value)
-        wradius = math.ceil(INPUT_WIDTH / predict_flow2.shape[2].value)
-        downsampled_flow2 = tf.nn.avg_pool(flow, [1, hradius, wradius, 1],
-                                           strides=[1, hradius, wradius, 1],
-                                           padding='SAME',
-                                           name='downsampled_flow2')
+        size = [predict_flow2.shape[1], predict_flow2.shape[2]]
+        downsampled_flow2 = _downsample.downsample(flow, size)
         losses.append(average_endpoint_error(downsampled_flow2, predict_flow2))
 
         loss = tf.losses.compute_weighted_loss(losses, [0.32, 0.08, 0.02, 0.01, 0.005])
