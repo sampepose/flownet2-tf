@@ -106,25 +106,27 @@ def __get_dataset(dataset_config, split_name):
         }
         decoder = slim.tfexample_decoder.TFExampleDecoder(keys_to_features, items_to_handlers)
         return slim.dataset.Dataset(
-          data_sources=dataset_config['PATHS'][split_name],
-          reader=reader,
-          decoder=decoder,
-          num_samples=dataset_config['SIZES'][split_name],
-          items_to_descriptions=dataset_config['ITEMS_TO_DESCRIPTIONS'])
+            data_sources=dataset_config['PATHS'][split_name],
+            reader=reader,
+            decoder=decoder,
+            num_samples=1,  # dataset_config['SIZES'][split_name],
+            items_to_descriptions=dataset_config['ITEMS_TO_DESCRIPTIONS'])
 
 
 def load_batch(dataset_config, split_name, global_step):
+    dataset_config['BATCH_SIZE'] = 1  # TODO: REMOVE
     num_threads = 32
-    reader_kwargs = {'options': tf.python_io.TFRecordOptions(tf.python_io.TFRecordCompressionType.ZLIB)}
+    reader_kwargs = {'options': tf.python_io.TFRecordOptions(
+        tf.python_io.TFRecordCompressionType.ZLIB)}
 
     with tf.name_scope('load_batch'):
         dataset = __get_dataset(dataset_config, split_name)
         data_provider = slim.dataset_data_provider.DatasetDataProvider(
-                            dataset,
-                            num_readers=num_threads,
-                            common_queue_capacity=2048,
-                            common_queue_min=1024,
-                            reader_kwargs=reader_kwargs)
+            dataset,
+            num_readers=num_threads,
+            common_queue_capacity=2048,
+            common_queue_min=1024,
+            reader_kwargs=reader_kwargs)
         image_a, image_b, flow = data_provider.get(['image_a', 'image_b', 'flow'])
         image_a, image_b, flow = map(tf.to_float, [image_a, image_b, flow])
 
@@ -135,26 +137,26 @@ def load_batch(dataset_config, split_name, global_step):
             num_threads=num_threads,
             allow_smaller_final_batch=False)
 
-        with tf.device('/gpu:0'):
-            # Extract preprocessing parameters for each image.
-            params_a = dataset_config['PREPROCESS']['image_a']
-            params_b = dataset_config['PREPROCESS']['image_b']
+        # with tf.device('/gpu:0'):
+        # Extract preprocessing parameters for each image.
+        # params_a = dataset_config['PREPROCESS']['image_a']
+        # params_b = dataset_config['PREPROCESS']['image_b']
 
-            # Apply preprocessing to batch of images
-            # Image A is preprocessed using randomly generated transforms as defined in the parameters.
-            # Image B is processed using the same transforms, plus any extra transforms defined for B.
+        # Apply preprocessing to batch of images
+        # Image A is preprocessed using randomly generated transforms as defined in the parameters.
+        # Image B is processed using the same transforms, plus any extra transforms defined for B.
 
-            image_as, coeffs_a = preprocess(image_as,
-                                            params_a,
-                                            global_step,
-                                            dataset_config['BATCH_SIZE'])
-            image_bs, coeffs_b = preprocess(image_bs,
-                                            params_b,
-                                            global_step,
-                                            dataset_config['BATCH_SIZE'],
-                                            coeffs_a)
+        # image_as, coeffs_a = preprocess(image_as,
+        #                                 params_a,
+        #                                 global_step,
+        #                                 dataset_config['BATCH_SIZE'])
+        # image_bs, coeffs_b = preprocess(image_bs,
+        #                                 params_b,
+        #                                 global_step,
+        #                                 dataset_config['BATCH_SIZE'],
+        #                                 coeffs_a)
 
-            crop = [params_a['crop_height'], params_a['crop_width']]
-            flows = flow_difference(flows, coeffs_a, coeffs_b, crop)
+        # crop = [params_a['crop_height'], params_a['crop_width']]
+        # flows = flow_difference(flows, coeffs_a, coeffs_b, crop)
 
-            return image_as, image_bs, flows
+        return image_as, image_bs, flows

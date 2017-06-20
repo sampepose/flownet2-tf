@@ -35,8 +35,8 @@ class Net(object):
         return
 
     def train(self, log_dir, training_schedule, input_a, input_b, flow):
-        tf.summary.image("image_a", tf.expand_dims(input_a[2, :, :, :],0), max_outputs=1)
-        tf.summary.image("image_b", tf.expand_dims(input_b[2, :, :, :],0), max_outputs=1)
+        tf.summary.image("image_a", tf.expand_dims(input_a[0, :, :, :], 0), max_outputs=1)
+        tf.summary.image("image_b", tf.expand_dims(input_b[0, :, :, :], 0), max_outputs=1)
 
         self.learning_rate = tf.train.piecewise_constant(
             self.global_step,
@@ -58,12 +58,12 @@ class Net(object):
 
         # Show the generated flow in TensorBoard
         if 'flow' in predictions:
-            pred_flow_0 = predictions['flow'][2, :, :, :]
+            pred_flow_0 = predictions['flow'][0, :, :, :]
             pred_flow_0 = tf.py_func(flow_to_image, [pred_flow_0], tf.uint8)
             pred_flow_0 = tf.expand_dims(pred_flow_0, 0)
             tf.summary.image('pred_flow', pred_flow_0, max_outputs=1)
 
-        true_flow_0 = flow[2, :, :, :]
+        true_flow_0 = flow[0, :, :, :]
         true_flow_0 = tf.py_func(flow_to_image, [true_flow_0], tf.uint8)
         true_flow_0 = tf.expand_dims(true_flow_0, 0)
         tf.summary.image('true_flow', true_flow_0, max_outputs=1)
