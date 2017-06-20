@@ -1,0 +1,80 @@
+import abc
+from enum import Enum
+import tensorflow as tf
+import numpy as np
+slim = tf.contrib.slim
+
+
+class Mode(Enum):
+    TRAIN = 1
+    TEST = 2
+
+
+class Net(object):
+    __metaclass__ = abc.ABCMeta
+
+    def __init__(self, mode=Mode.TRAIN, debug=False):
+        self.global_step = slim.get_or_create_global_step()
+        self.mode = mode
+        self.debug = debug
+
+    @abc.abstractmethod
+    def model(self, inputs):
+        """
+        Defines the model and returns a tuple of Tensors needed for calculating the loss.
+        """
+        return
+
+    @abc.abstractmethod
+    def loss(self, **kwargs):
+        """
+        Accepts prediction Tensors from the output of `model`.
+        Returns a single Tensor representing the total loss of the model.
+        """
+        return
+
+    def train(self, log_dir, input_a, input_b, flow):
+        tf.summary.image("image_a", tf.expand_dims(input_a[2, :, :, :],0), max_outputs=1)
+        tf.summary.image("image_b", tf.expand_dims(input_b[2, :, :, :],0), max_outputs=1)
+
+        self.learning_rate = 0.001
+
+        optimizer = tf.train.AdamOptimizer(
+            self.learning_rate,
+            0.9,
+            0.999)
+
+        inputs = {
+            'input_a': input_a,
+            'input_b': input_b,
+        }
+        predictions = self.model(inputs)
+        total_loss = self.loss(flow, predictions)
+        tf.summary.scalar('loss', total_loss)
+
+        train_op = slim.learning.create_train_op(
+            total_loss,
+            optimizer)
+
+        if self.debug:
+            with tf.Session() as sess:
+                sess.run(tf.global_variables_initializer())
+                tf.train.start_queue_runners(sess)
+                slim.learning.train_step(
+                    sess,
+                    train_op,
+                    self.global_step,
+                    {
+                        'should_trace': tf.constant(1),
+                        'should_log': tf.constant(1),
+                        'logdir': log_dir + '/debug',
+                    }
+                )
+        else:
+            slim.learning.train(
+                train_op,
+                log_dir,
+                # session_config=tf.ConfigProto(allow_soft_placement=True),
+                global_step=self.global_step,
+                save_summaries_secs=60
+            )
