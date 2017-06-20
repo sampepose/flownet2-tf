@@ -23,6 +23,11 @@ GPU_PROD_SPATIAL 	= $(OUT_DIR)/spatial_transform_gpu.o
 GPU_PROD_FLOW    	= $(OUT_DIR)/flow_augmentation_gpu.o
 PREPROCESSING_PROD	= $(OUT_DIR)/preprocessing.so
 
+DOWNSAMPLE_SRC = "src/ops/downsample/downsample_kernel.cc" "src/ops/downsample/downsample_op.cc"
+GPU_SRC_DOWNSAMPLE  = src/ops/downsample/downsample_kernel_gpu.cu.cc
+GPU_PROD_DOWNSAMPLE = $(OUT_DIR)/downsample_kernel_gpu.o
+DOWNSAMPLE_PROD 	= $(OUT_DIR)/downsample.so
+
 
 ifeq ($(OS),Windows_NT)
     detected_OS := Windows
@@ -42,6 +47,8 @@ gpu:
 	$(GPUCC) -g $(CFLAGS) $(GPUCFLAGS) $(GPU_SRC_SPATIAL) $(GPULFLAGS) $(GPUDEF) -o $(GPU_PROD_SPATIAL)
 	$(GPUCC) -g $(CFLAGS) $(GPUCFLAGS) $(GPU_SRC_FLOW) $(GPULFLAGS) $(GPUDEF) -o $(GPU_PROD_FLOW)
 	$(CXX) -g $(CFLAGS)  $(PREPROCESSING_SRC) $(GPU_PROD_SPATIAL) $(GPU_PROD_FLOW) $(LFLAGS) $(CGPUFLAGS) -o $(PREPROCESSING_PROD)
+	$(GPUCC) -g $(CFLAGS) $(GPUCFLAGS) $(GPU_SRC_DOWNSAMPLE) $(GPULFLAGS) $(GPUDEF) -o $(GPU_PROD_DOWNSAMPLE)
+	$(CXX) -g $(CFLAGS)  $(DOWNSAMPLE_SRC) $(GPU_PROD_DOWNSAMPLE) $(LFLAGS) $(CGPUFLAGS) -o $(DOWNSAMPLE_PROD)
 
 clean:
 	rm -f $(PREPROCESSING_PROD) $(GPU_PROD_FLOW) $(GPU_PROD_SPATIAL) $(DOWNSAMPLE_PROD) $(GPU_PROD_DOWNSAMPLE)
