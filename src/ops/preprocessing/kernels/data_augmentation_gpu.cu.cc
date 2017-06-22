@@ -283,7 +283,7 @@ void ComputeDataAugmentation(
     coeffs.store_spatial_matrix(params.crop_height,
                                 params.crop_width,
                                 src_height,
-                                src_width, spatial_matrices.data() + i * 8);
+                                src_width, spatial_matrices.data() + i * 6);
 
     // We only do a spatial transform if our params have a spatial transform or
     // one of the incoming coefficients has a spatial transform coefficient not
