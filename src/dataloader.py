@@ -118,7 +118,6 @@ def __get_dataset(dataset_config, split_name):
 
 def config_to_arrays(dataset_config):
     output = {
-        'crop': [],
         'name': [],
         'rand_type': [],
         'exp': [],
@@ -128,16 +127,8 @@ def config_to_arrays(dataset_config):
     }
     config = copy.deepcopy(dataset_config)
 
-    if 'scale' in config:
-        del config['scale']
     if 'coeff_schedule_param' in config:
         del config['coeff_schedule_param']
-
-    # Get the crop size
-    output['crop'].append(dataset_config['crop_height'])
-    output['crop'].append(dataset_config['crop_width'])
-    del config['crop_height']
-    del config['crop_width']
 
     # Get all attributes
     for (name, value) in config.iteritems():
@@ -167,6 +158,10 @@ def load_batch(dataset_config, split_name, global_step):
         image_a, image_b, flow = data_provider.get(['image_a', 'image_b', 'flow'])
         image_a, image_b, flow = map(tf.to_float, [image_a, image_b, flow])
 
+        if dataset_config['PREPROCESS']['scale']:
+            image_a = image_a / 255.0
+            image_b = image_b / 255.0
+
         image_as, image_bs, flows = tf.train.batch(
             [image_a, image_b, flow],
             batch_size=dataset_config['BATCH_SIZE'],
@@ -174,6 +169,8 @@ def load_batch(dataset_config, split_name, global_step):
             num_threads=num_threads,
             allow_smaller_final_batch=False)
 
+        crop = [dataset_config['PREPROCESS']['crop_height'],
+                dataset_config['PREPROCESS']['crop_width']]
         config_a = config_to_arrays(dataset_config['PREPROCESS']['image_a'])
         config_b = config_to_arrays(dataset_config['PREPROCESS']['image_b'])
 
@@ -181,7 +178,7 @@ def load_batch(dataset_config, split_name, global_step):
         image_as, image_bs, spat_mat_a, inv_spat_mat_b = \
             _preprocessing_ops.data_augmentation(image_as,
                                                  image_bs,
-                                                 config_a['crop'],
+                                                 crop,
                                                  config_a['name'],
                                                  config_a['rand_type'],
                                                  config_a['exp'],
@@ -197,6 +194,6 @@ def load_batch(dataset_config, split_name, global_step):
 
         # Perform flow augmentation using spatial parameters from data augmentation
         flows = _preprocessing_ops.flow_augmentation(
-            flows, spat_mat_a, inv_spat_mat_b, config_a['crop'])
+            flows, spat_mat_a, inv_spat_mat_b, crop)
 
         return image_as, image_bs, flows
