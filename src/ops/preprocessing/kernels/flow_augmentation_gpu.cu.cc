@@ -27,7 +27,7 @@ __global__ void FillFlowAugmentationKernel(
         CUDA_1D_KERNEL_LOOP(index, nthreads) {
             const float x = (float)(index % out_width);
             const float y = (float)((index / out_width) % out_height);
-            const int n = (index / out_width / out_height) % batch_size;
+            const int n = (index / out_width / out_height);
 
             const int transformIdx = n * 8;
 
