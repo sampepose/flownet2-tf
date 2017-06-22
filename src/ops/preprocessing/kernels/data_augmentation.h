@@ -36,7 +36,16 @@ public:
   }
 
   void invert() {
-    // TODO: implement
+    const float t0 = this->t0, t1 = this->t1, t2 = this->t2;
+    const float t3 = this->t3, t4 = this->t4, t5 = this->t5;
+    const float denom = t0 * t4 - t1 * t3;
+
+    this->t0 = t4 / denom;
+    this->t1 = t1 / -denom;
+    this->t2 = (t2 * t4 - t1 * t5) / -denom;
+    this->t3 = t3 / -denom;
+    this->t4 = t0 / denom;
+    this->t5 = (t2 * t3 - t0 * t5) / denom;
   }
 
   void toArray(float *arr) {
@@ -163,11 +172,20 @@ public:
     }
   }
 
-  void store_spatial_matrix(const int out_height,
-                            const int out_width,
-                            const int src_height,
-                            const int src_width,
-                            float    *output) {
+  bool do_spatial_transform() {
+    return translate_x != TRANSLATE_DEFAULT ||
+           translate_y != TRANSLATE_DEFAULT ||
+           rotate != ROTATE_DEFAULT ||
+           zoom_x != ZOOM_DEFAULT ||
+           zoom_y != ZOOM_DEFAULT;
+  }
+
+  void store_spatial_matrix(const int  out_height,
+                            const int  out_width,
+                            const int  src_height,
+                            const int  src_width,
+                            float     *output,
+                            const bool invert = false) {
     // TODO: Memoize this
 
     TransMat t = TransMat();
@@ -193,6 +211,10 @@ public:
     }
 
     t.leftMultiply(1, 0, 0.5 * src_width, 0, 1, 0.5 * src_height);
+
+    if (invert) {
+      t.invert();
+    }
 
     t.toArray(output);
   }

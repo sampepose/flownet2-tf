@@ -108,12 +108,30 @@ public:
                             coeffs_a,
                             coeffs_b);
 
-    // TODO: Write spatial matrices to output tensors
-    // auto spat_transform     = spat_transform_t.tensor<float, 1>();
-    // auto inv_spat_transform = inv_spat_transform_t.tensor<float, 1>();
-    // spatial_a.toTensor(spat_transform.data());
-    // spatial_b.inverse();
-    // spatial_b.toTensor(inv_spat_transform.data());
+    const int src_height    = input_a.dimension(1);
+    const int src_width     = input_a.dimension(2);
+    auto spat_transform     = spat_transform_t->tensor<float, 2>();
+    auto inv_spat_transform = inv_spat_transform_t->tensor<float, 2>();
+
+    for (int i = 0; i < coeffs_a.size(); i++) {
+      auto coeffs = coeffs_a[i];
+      printf("%f %f\n", coeffs.translate_x, coeffs.translate_y);
+      coeffs.store_spatial_matrix(crop_[0],
+                                  crop_[1],
+                                  src_height,
+                                  src_width,
+                                  spat_transform.data() + i * 6);
+    }
+
+    for (int i = 0; i < coeffs_b.size(); i++) {
+      auto coeffs = coeffs_b[i];
+      coeffs.store_spatial_matrix(crop_[0],
+                                  crop_[1],
+                                  src_height,
+                                  src_width,
+                                  inv_spat_transform.data() + i * 6,
+                                  true);
+    }
   }
 
 private:
@@ -138,6 +156,8 @@ private:
 };
 
 REGISTER_KERNEL_BUILDER(Name("DataAugmentation")
-                        .Device(DEVICE_GPU),
+                        .Device(DEVICE_GPU)
+                        .HostMemory("spatial_transform_a")
+                        .HostMemory("inv_spatial_transform_b"),
                         DataAugmentation<GPUDevice>)
 } // end namespace tensorflow

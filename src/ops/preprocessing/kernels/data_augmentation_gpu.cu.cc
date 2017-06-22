@@ -255,34 +255,46 @@ void ComputeDataAugmentation(
                                     &spatial_matrices_tensor, pinned_allocator));
   auto spatial_matrices = spatial_matrices_tensor.tensor<float, 2>();
 
+
+  bool do_spatial_transform = params.do_spatial_transform();
+
   // Generate coefficients for each augmentation type
   for (int i = 0; i < batch_size; i++) {
-    if (params.do_spatial_transform()) {
-      AugmentationCoeffs in_coeff;
+    AugmentationCoeffs coeffs;
 
-      if (in_coeffs.size() == batch_size) {
-        in_coeff = in_coeffs[i];
-      } else {
-        in_coeff = AugmentationCoeffs();
-      }
-
-      // Generate new spatial coefficients (combined with incoming ones)
-      AugmentationCoeffs coeffs = generate_valid_spatial_coeffs(params,
-                                                                in_coeff,
-                                                                src_height,
-                                                                src_width);
-
-      coeffs.store_spatial_matrix(params.crop_height,
-                                  params.crop_width,
-                                  src_height,
-                                  src_width, spatial_matrices.data() + i * 8);
-
-      out_coeffs.push_back(coeffs);
+    // If we have incoming coefficients, use those. Otherwise use the default
+    // coefficients.
+    if (in_coeffs.size() == batch_size) {
+      coeffs = in_coeffs[i];
+    } else {
+      coeffs = AugmentationCoeffs();
     }
+
+    // If we have spatial transformation parameters, generate new spatial coeffs
+    // and combine with incoming coeffs. Otherwise, use the incoming
+    // coefficients.
+    if (params.do_spatial_transform()) {
+      coeffs = generate_valid_spatial_coeffs(params,
+                                             coeffs,
+                                             src_height,
+                                             src_width);
+    }
+
+    coeffs.store_spatial_matrix(params.crop_height,
+                                params.crop_width,
+                                src_height,
+                                src_width, spatial_matrices.data() + i * 8);
+
+    // We only do a spatial transform if our params have a spatial transform or
+    // one of the incoming coefficients has a spatial transform coefficient not
+    // equal to the default value
+    do_spatial_transform = do_spatial_transform || coeffs.do_spatial_transform();
+
+    out_coeffs.push_back(coeffs);
   }
 
   // Perform spatial transformation
-  if (params.do_spatial_transform()) {
+  if (do_spatial_transform) {
     CudaLaunchConfig config = GetCudaLaunchConfig(output_count, device);
 
     SpatialAugmentation << < config.block_count, config.thread_per_block, 0,
@@ -292,8 +304,6 @@ void ComputeDataAugmentation(
       params.crop_width, output.data(),
       spatial_matrices.data());
   }
-
-  // TODO: Somehow return the coeffs
 }
 } // end namespace tensorflow
 
