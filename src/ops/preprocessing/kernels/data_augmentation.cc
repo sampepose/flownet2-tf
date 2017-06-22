@@ -115,7 +115,6 @@ public:
 
     for (int i = 0; i < coeffs_a.size(); i++) {
       auto coeffs = coeffs_a[i];
-      printf("%f %f\n", coeffs.translate_x, coeffs.translate_y);
       coeffs.store_spatial_matrix(crop_[0],
                                   crop_[1],
                                   src_height,
