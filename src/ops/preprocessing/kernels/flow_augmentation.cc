@@ -28,14 +28,14 @@ class FlowAugmentation : public OpKernel {
                 errors::InvalidArgument("Input images must have rank 4"));
     OP_REQUIRES(ctx, (TensorShapeUtils::IsMatrix(transforms_a_t.shape()) &&
                       transforms_a_t.dim_size(0) == flows_t.dim_size(0) &&
-                      transforms_a_t.dim_size(1) == 8),
+                      transforms_a_t.dim_size(1) == 6),
                 errors::InvalidArgument(
-                    "Input transforms_a should be num_images x 8"));
+                    "Input transforms_a should be num_images x 6"));
     OP_REQUIRES(ctx, (TensorShapeUtils::IsMatrix(inv_transforms_b_t.shape()) &&
                       inv_transforms_b_t.dim_size(0) == flows_t.dim_size(0) &&
-                      inv_transforms_b_t.dim_size(1) == 8),
+                      inv_transforms_b_t.dim_size(1) == 6),
                 errors::InvalidArgument(
-                    "Input inv_transforms_b should be num_images x 8"));
+                    "Input inv_transforms_b should be num_images x 6"));
 
     // Allocate the memory for the output
     Tensor* output_t;

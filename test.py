@@ -3,34 +3,12 @@ import tensorflow as tf
 import numpy as np
 from scipy.misc import imread
 import matplotlib
+from src.flowlib import read_flow, flow_to_image
 matplotlib.use('TKAgg')
 import matplotlib.pyplot as plt
 
 _preprocessing_ops = tf.load_op_library(
     tf.resource_loader.get_path_to_datafile("./src/ops/build/preprocessing.so"))
-
-
-def read_flow(filename):
-    """
-    read optical flow from Middlebury .flo file
-    :param filename: name of the flow file
-    :return: optical flow data in matrix
-    """
-    f = open(filename, 'rb')
-    magic = np.fromfile(f, np.float32, count=1)
-    data2d = None
-
-    if 202021.25 != magic:
-        print 'Magic number incorrect. Invalid .flo file'
-    else:
-        w = np.fromfile(f, np.int32, count=1)
-        h = np.fromfile(f, np.int32, count=1)
-        print "Reading %d x %d flo file" % (h, w)
-        data2d = np.fromfile(f, np.float32, count=2 * w * h)
-        # reshape data into 3D array (columns, rows, channels)
-        data2d = np.resize(data2d, (h[0], w[0], 2))
-    f.close()
-    return data2d
 
 
 def display(img, c):
@@ -79,6 +57,7 @@ def main():
         with tf.device('/gpu:0'):
             image_a = imread('./img0.ppm') / 255.0
             image_b = imread('./img1.ppm') / 255.0
+            flow = read_flow('./flow.flo')
 
             image_a_tf = tf.expand_dims(tf.to_float(tf.constant(image_a, dtype=tf.float64)), 0)
             image_b_tf = tf.expand_dims(tf.to_float(tf.constant(image_b, dtype=tf.float64)), 0)
@@ -100,11 +79,35 @@ def main():
                                                               params_b_prob)
 
             out = sess.run(preprocess)
+            trans = out.spatial_transform_a
+            inv_trans = out.inv_spatial_transform_b
 
-            plt.subplot(211)
+            print trans.shape
+            print inv_trans.shape
+
+            flow_tf = tf.expand_dims(tf.to_float(tf.constant(flow)), 0)
+            aug_flow_tf = _preprocessing_ops.flow_augmentation(flow_tf, trans, inv_trans, crop)
+
+            aug_flow = sess.run(aug_flow_tf)[0, :, :, :]
+
+            # Plot img0, img0aug
+            plt.subplot(321)
             plt.imshow(image_a)
-            plt.subplot(212)
+            plt.subplot(322)
             plt.imshow(out.aug_image_a[0, :, :, :])
+
+            # Plot img1, img1aug
+            plt.subplot(323)
+            plt.imshow(image_b)
+            plt.subplot(324)
+            plt.imshow(out.aug_image_b[0, :, :, :])
+
+            # Plot flow, flowaug
+            plt.subplot(325)
+            plt.imshow(flow_to_image(flow))
+            plt.subplot(326)
+            plt.imshow(flow_to_image(aug_flow))
+
             plt.show()
 
             # image_b_aug = sess.run(image_b_tf)
