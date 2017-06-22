@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
-from .preprocessing.preprocess import preprocess, flow_difference
 import tensorflow as tf
+import copy
 slim = tf.contrib.slim
+
+_preprocessing_ops = tf.load_op_library(
+    tf.resource_loader.get_path_to_datafile("./ops/build/preprocessing.so"))
 
 
 # https://github.com/tensorflow/tensorflow/blob/master/tensorflow/contrib/slim/python/slim/data/tfexample_decoder.py
@@ -113,8 +116,42 @@ def __get_dataset(dataset_config, split_name):
             items_to_descriptions=dataset_config['ITEMS_TO_DESCRIPTIONS'])
 
 
+def config_to_arrays(dataset_config):
+    output = {
+        'crop': [],
+        'name': [],
+        'rand_type': [],
+        'exp': [],
+        'mean': [],
+        'spread': [],
+        'prob': [],
+    }
+    config = copy.deepcopy(dataset_config)
+
+    if 'scale' in config:
+        del config['scale']
+    if 'coeff_schedule_param' in config:
+        del config['coeff_schedule_param']
+
+    # Get the crop size
+    output['crop'].append(dataset_config['crop_height'])
+    output['crop'].append(dataset_config['crop_width'])
+    del config['crop_height']
+    del config['crop_width']
+
+    # Get all attributes
+    for (name, value) in config.iteritems():
+        output['name'].append(name)
+        output['rand_type'].append(value['rand_type'])
+        output['exp'].append(value['exp'])
+        output['mean'].append(value['mean'])
+        output['spread'].append(value['spread'])
+        output['prob'].append(value['prob'])
+
+    return output
+
+
 def load_batch(dataset_config, split_name, global_step):
-    dataset_config['BATCH_SIZE'] = 1  # TODO: REMOVE
     num_threads = 32
     reader_kwargs = {'options': tf.python_io.TFRecordOptions(
         tf.python_io.TFRecordCompressionType.ZLIB)}
@@ -137,26 +174,29 @@ def load_batch(dataset_config, split_name, global_step):
             num_threads=num_threads,
             allow_smaller_final_batch=False)
 
-        # with tf.device('/gpu:0'):
-        # Extract preprocessing parameters for each image.
-        # params_a = dataset_config['PREPROCESS']['image_a']
-        # params_b = dataset_config['PREPROCESS']['image_b']
+        config_a = config_to_arrays(dataset_config['PREPROCESS']['image_a'])
+        config_b = config_to_arrays(dataset_config['PREPROCESS']['image_b'])
 
-        # Apply preprocessing to batch of images
-        # Image A is preprocessed using randomly generated transforms as defined in the parameters.
-        # Image B is processed using the same transforms, plus any extra transforms defined for B.
+        # Perform data augmentation on GPU
+        image_as, image_bs, spat_mat_a, inv_spat_mat_b = \
+            _preprocessing_ops.data_augmentation(image_as,
+                                                 image_bs,
+                                                 config_a['crop'],
+                                                 config_a['name'],
+                                                 config_a['rand_type'],
+                                                 config_a['exp'],
+                                                 config_a['mean'],
+                                                 config_a['spread'],
+                                                 config_a['prob'],
+                                                 config_b['name'],
+                                                 config_b['rand_type'],
+                                                 config_b['exp'],
+                                                 config_b['mean'],
+                                                 config_b['spread'],
+                                                 config_b['prob'])
 
-        # image_as, coeffs_a = preprocess(image_as,
-        #                                 params_a,
-        #                                 global_step,
-        #                                 dataset_config['BATCH_SIZE'])
-        # image_bs, coeffs_b = preprocess(image_bs,
-        #                                 params_b,
-        #                                 global_step,
-        #                                 dataset_config['BATCH_SIZE'],
-        #                                 coeffs_a)
-
-        # crop = [params_a['crop_height'], params_a['crop_width']]
-        # flows = flow_difference(flows, coeffs_a, coeffs_b, crop)
+        # Perform flow augmentation using spatial parameters from data augmentation
+        flows = _preprocessing_ops.flow_augmentation(
+            flows, spat_mat_a, inv_spat_mat_b, config_a['crop'])
 
         return image_as, image_bs, flows
