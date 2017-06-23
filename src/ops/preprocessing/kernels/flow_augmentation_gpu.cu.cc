@@ -31,6 +31,7 @@ __global__ void FillFlowAugmentationKernel(
 
             const int transformIdx = n * 6;
 
+            // Apply transformation matrix applied to second image
             const float xpos1 = x * transform_ptr[transformIdx + 0]
                                 + y * transform_ptr[transformIdx + 1]
                                 + transform_ptr[transformIdx + 2];
@@ -46,6 +47,7 @@ __global__ void FillFlowAugmentationKernel(
             const float xpos2 = xpos1 + flow_ptr[min(srcXIdx, src_total_count)];
             const float ypos2 = ypos1 + flow_ptr[min(srcYIdx, src_total_count)];
 
+            // Apply inverse of the transformation matrix applied to first image
             const float xpos3 = xpos2 * inv_transform_ptr[transformIdx + 0]
                                 + ypos2 * inv_transform_ptr[transformIdx + 1]
                                 + inv_transform_ptr[transformIdx + 2];
@@ -61,8 +63,8 @@ __global__ void FillFlowAugmentationKernel(
 bool FillFlowAugmentation(const GPUDevice& device,
                           typename TTypes<float, 4>::Tensor output,
                           typename TTypes<float, 4>::ConstTensor flows,
-                          typename TTypes<float, 2>::ConstTensor transforms_a,
-                          typename TTypes<float, 2>::ConstTensor inv_transforms_b) {
+                          typename TTypes<float, 2>::ConstTensor transforms_from_b,
+                          typename TTypes<float, 2>::ConstTensor inv_transforms_from_a) {
     const int batch_size = output.dimension(0);
     const int out_height = output.dimension(1);
     const int out_width = output.dimension(2);
@@ -74,7 +76,7 @@ bool FillFlowAugmentation(const GPUDevice& device,
     CudaLaunchConfig config = GetCudaLaunchConfig(total_count / 2, device);
     FillFlowAugmentationKernel<<<config.block_count, config.thread_per_block, 0,
                         device.stream()>>>(
-      total_count / 2, flows.data(), transforms_a.data(), inv_transforms_b.data(),
+      total_count / 2, flows.data(), transforms_from_b.data(), inv_transforms_from_a.data(),
       src_total_count, flows.dimension(1), flows.dimension(2), batch_size,
       out_height, out_width, output.data());
     return device.ok();

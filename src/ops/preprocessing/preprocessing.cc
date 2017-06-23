@@ -39,8 +39,8 @@ REGISTER_OP("DataAugmentation")
 .Attr("params_b_prob: list(float)")
 .Output("aug_image_a: float32")
 .Output("aug_image_b: float32")
-.Output("spatial_transform_a: float32")
-.Output("inv_spatial_transform_b: float32")
+.Output("inv_transforms_from_a: float32")
+.Output("transforms_from_b: float32")
 .SetShapeFn([](InferenceContext *c) {
     // Verify input A and input B both have 4 dimensions
     ShapeHandle input_shape_a, input_shape_b;
@@ -85,8 +85,8 @@ REGISTER_OP("DataAugmentation")
 
 REGISTER_OP("FlowAugmentation")
 .Input("flows: float32")
-.Input("transforms_a: float32")
-.Input("transforms_b_inv: float32")
+.Input("inv_transforms_from_a: float32")
+.Input("transforms_from_b: float32")
 .Attr("crop: list(int) >= 2")
 .Output("transformed_flows: float32")
 .SetShapeFn(SetOutputToSizedImage);

@@ -110,8 +110,8 @@ public:
 
     const int src_height    = input_a.dimension(1);
     const int src_width     = input_a.dimension(2);
-    auto spat_transform     = spat_transform_t->tensor<float, 2>();
-    auto inv_spat_transform = inv_spat_transform_t->tensor<float, 2>();
+    auto inv_transforms_from_a     = spat_transform_t->tensor<float, 2>();
+    auto transforms_from_b = inv_spat_transform_t->tensor<float, 2>();
 
     for (int i = 0; i < coeffs_a.size(); i++) {
       auto coeffs = coeffs_a[i];
@@ -119,7 +119,8 @@ public:
                                   crop_[1],
                                   src_height,
                                   src_width,
-                                  spat_transform.data() + i * 6);
+                                  inv_transforms_from_a.data() + i * 6,
+                                  true);
     }
 
     for (int i = 0; i < coeffs_b.size(); i++) {
@@ -128,8 +129,8 @@ public:
                                   crop_[1],
                                   src_height,
                                   src_width,
-                                  inv_spat_transform.data() + i * 6,
-                                  true);
+                                  transforms_from_b.data() + i * 6,
+                                  false);
     }
   }
 

@@ -14,8 +14,8 @@ typedef Eigen::GpuDevice GPUDevice;
 bool FillFlowAugmentation(const GPUDevice& device,
                           typename TTypes<float, 4>::Tensor output,
                           typename TTypes<float, 4>::ConstTensor flows,
-                          typename TTypes<float, 2>::ConstTensor transforms_a,
-                          typename TTypes<float, 2>::ConstTensor inv_transforms_b);
+                          typename TTypes<float, 2>::ConstTensor transforms_from_b,
+                          typename TTypes<float, 2>::ConstTensor inv_transforms_from_a);
 
 }  // end namespace tensorflow
 
