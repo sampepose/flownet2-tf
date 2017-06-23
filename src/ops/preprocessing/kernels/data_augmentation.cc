@@ -157,7 +157,7 @@ private:
 
 REGISTER_KERNEL_BUILDER(Name("DataAugmentation")
                         .Device(DEVICE_GPU)
-                        .HostMemory("spatial_transform_a")
-                        .HostMemory("inv_spatial_transform_b"),
+                        .HostMemory("inv_transforms_from_a")
+                        .HostMemory("transforms_from_b"),
                         DataAugmentation<GPUDevice>)
 } // end namespace tensorflow
