@@ -11,7 +11,7 @@ Status SetOutputToSizedImage(InferenceContext *c) {
   ShapeHandle input;
 
   TF_RETURN_IF_ERROR(c->WithRank(c->input(0), 4, &input));
-  DimensionHandle    batch = c->Dim(input, 0);
+  DimensionHandle batch    = c->Dim(input, 0);
   DimensionHandle    depth = c->Dim(input, 3);
   std::vector<int32> crop_;
   c->GetAttr("crop", &crop_);

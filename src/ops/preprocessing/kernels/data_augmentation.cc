@@ -108,10 +108,10 @@ public:
                             coeffs_a,
                             coeffs_b);
 
-    const int src_height    = input_a.dimension(1);
-    const int src_width     = input_a.dimension(2);
-    auto inv_transforms_from_a     = spat_transform_t->tensor<float, 2>();
-    auto transforms_from_b = inv_spat_transform_t->tensor<float, 2>();
+    const int src_height       = input_a.dimension(1);
+    const int src_width        = input_a.dimension(2);
+    auto inv_transforms_from_a = spat_transform_t->tensor<float, 2>();
+    auto transforms_from_b     = inv_spat_transform_t->tensor<float, 2>();
 
     for (int i = 0; i < coeffs_a.size(); i++) {
       auto coeffs = coeffs_a[i];

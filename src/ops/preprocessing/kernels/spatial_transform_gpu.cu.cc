@@ -8,9 +8,7 @@
 #include "tensorflow/core/platform/types.h"
 
 namespace tensorflow {
-
 namespace functor {
-
 // Explicit instantiation of the GPU functor.
 typedef Eigen::GpuDevice GPUDevice;
 
@@ -19,9 +17,7 @@ template class FillSpatialTransform<GPUDevice, int32>;
 template class FillSpatialTransform<GPUDevice, int64>;
 template class FillSpatialTransform<GPUDevice, float>;
 template class FillSpatialTransform<GPUDevice, double>;
-
-}  // end namespace functor
-
-}  // end namespace tensorflow
+} // end namespace functor
+} // end namespace tensorflow
 
 #endif  // GOOGLE_CUDA

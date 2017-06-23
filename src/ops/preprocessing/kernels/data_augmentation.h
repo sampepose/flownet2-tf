@@ -19,7 +19,7 @@ namespace tensorflow {
 typedef Eigen::GpuDevice GPUDevice;
 
 inline bool essentiallyEqual(float a, float b) {
-    return fabs(a - b) <= ( (fabs(a) > fabs(b) ? fabs(b) : fabs(a)) * EPSILON);
+  return fabs(a - b) <= ((fabs(a) > fabs(b) ? fabs(b) : fabs(a)) * EPSILON);
 }
 
 class TransMat {
@@ -83,9 +83,9 @@ public:
   struct AugmentationParam squeeze;
 
   bool has_translate = false;
-  bool has_rotate      = false;
-  bool has_zoom        = false;
-  bool has_squeeze     = false;
+  bool has_rotate    = false;
+  bool has_zoom      = false;
+  bool has_squeeze   = false;
 
   inline AugmentationParams(int                crop_height,
                             int                crop_width,
@@ -152,43 +152,43 @@ public:
 
   void combine_with(const AugmentationCoeffs& coeffs) {
     if (!essentiallyEqual(coeffs.translate_x, TRANSLATE_DEFAULT)) {
-        if (!essentiallyEqual(translate_x, TRANSLATE_DEFAULT)) {
-            translate_x *= coeffs.translate_x;
-        } else {
-            translate_x = coeffs.translate_x;
-        }
+      if (!essentiallyEqual(translate_x, TRANSLATE_DEFAULT)) {
+        translate_x *= coeffs.translate_x;
+      } else {
+        translate_x = coeffs.translate_x;
+      }
     }
 
     if (!essentiallyEqual(coeffs.translate_y, TRANSLATE_DEFAULT)) {
-        if (!essentiallyEqual(translate_y, TRANSLATE_DEFAULT)) {
-            translate_y *= coeffs.translate_y;
-        } else {
-            translate_y = coeffs.translate_y;
-        }
+      if (!essentiallyEqual(translate_y, TRANSLATE_DEFAULT)) {
+        translate_y *= coeffs.translate_y;
+      } else {
+        translate_y = coeffs.translate_y;
+      }
     }
 
     if (!essentiallyEqual(coeffs.rotate, ROTATE_DEFAULT)) {
-        if (!essentiallyEqual(rotate, ROTATE_DEFAULT)) {
-            rotate *= coeffs.rotate;
-        } else {
-            rotate = coeffs.rotate;
-        }
+      if (!essentiallyEqual(rotate, ROTATE_DEFAULT)) {
+        rotate *= coeffs.rotate;
+      } else {
+        rotate = coeffs.rotate;
+      }
     }
 
     if (!essentiallyEqual(coeffs.zoom_x, ZOOM_DEFAULT)) {
-        if (!essentiallyEqual(zoom_x, ZOOM_DEFAULT)) {
-            zoom_x *= coeffs.zoom_x;
-        } else {
-            zoom_x = coeffs.zoom_x;
-        }
+      if (!essentiallyEqual(zoom_x, ZOOM_DEFAULT)) {
+        zoom_x *= coeffs.zoom_x;
+      } else {
+        zoom_x = coeffs.zoom_x;
+      }
     }
 
     if (!essentiallyEqual(coeffs.zoom_y, ZOOM_DEFAULT)) {
-        if (!essentiallyEqual(zoom_y, ZOOM_DEFAULT)) {
-            zoom_y *= coeffs.zoom_y;
-        } else {
-            zoom_y = coeffs.zoom_y;
-        }
+      if (!essentiallyEqual(zoom_y, ZOOM_DEFAULT)) {
+        zoom_y *= coeffs.zoom_y;
+      } else {
+        zoom_y = coeffs.zoom_y;
+      }
     }
   }
 
