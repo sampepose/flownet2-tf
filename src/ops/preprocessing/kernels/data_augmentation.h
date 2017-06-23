@@ -71,14 +71,12 @@ public:
 
   int crop_height;
   int crop_width;
-  struct AugmentationParam translate_x;
-  struct AugmentationParam translate_y;
+  struct AugmentationParam translate;
   struct AugmentationParam rotate;
   struct AugmentationParam zoom;
   struct AugmentationParam squeeze;
 
-  bool has_translate_x = false;
-  bool has_translate_y = false;
+  bool has_translate = false;
   bool has_rotate      = false;
   bool has_zoom        = false;
   bool has_squeeze     = false;
@@ -104,12 +102,9 @@ public:
 
       struct AugmentationParam param = { rand_type, should_exp, mean, spread, prob };
 
-      if (name == "translate_x") {
-        this->translate_x     = param;
-        this->has_translate_x = true;
-      } else if (name == "translate_y") {
-        this->translate_y     = param;
-        this->has_translate_y = true;
+      if (name == "translate") {
+        this->translate     = param;
+        this->has_translate = true;
       } else if (name == "rotate") {
         this->rotate     = param;
         this->has_rotate = true;
@@ -127,8 +122,7 @@ public:
   }
 
   bool do_spatial_transform() {
-    return has_translate_x || has_translate_y || has_rotate ||
-           has_zoom || has_squeeze;
+    return has_translate || has_rotate || has_zoom || has_squeeze;
   }
 };
 

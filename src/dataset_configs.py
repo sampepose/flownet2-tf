@@ -56,14 +56,7 @@ FLYING_CHAIRS_DATASET_CONFIG = {
         'crop_height': 320,
         'crop_width': 448,
         'image_a': {
-            'translate_x': {
-                'rand_type': "uniform_bernoulli",
-                'exp': False,
-                'mean': 0,
-                'spread': 0.4,
-                'prob': 1.0,
-            },
-            'translate_y': {
+            'translate': {
                 'rand_type': "uniform_bernoulli",
                 'exp': False,
                 'mean': 0,
@@ -101,14 +94,7 @@ FLYING_CHAIRS_DATASET_CONFIG = {
         },
         # All preprocessing to image A will be applied to image B in addition to the following.
         'image_b': {
-            'translate_x': {
-                'rand_type': "gaussian_bernoulli",
-                'exp': False,
-                'mean': 0,
-                'spread': 0.03,
-                'prob': 1.0,
-            },
-            'translate_y': {
+            'translate': {
                 'rand_type': "gaussian_bernoulli",
                 'exp': False,
                 'mean': 0,
@@ -122,14 +108,7 @@ FLYING_CHAIRS_DATASET_CONFIG = {
                 'spread': 0.03,
                 'prob': 1.0,
             },
-            'zoom_x': {
-                'rand_type': "gaussian_bernoulli",
-                'exp': True,
-                'mean': 0,
-                'spread': 0.03,
-                'prob': 1.0,
-            },
-            'zoom_y': {
+            'zoom': {
                 'rand_type': "gaussian_bernoulli",
                 'exp': True,
                 'mean': 0,

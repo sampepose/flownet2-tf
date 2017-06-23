@@ -134,12 +134,9 @@ float rng_generate(const AugmentationParam& param, const float default_value) {
 
 void generate_spatial_coeffs(const AugmentationParams& params,
                              AugmentationCoeffs      & coeff) {
-  if (params.has_translate_x) {
-    coeff.translate_x = rng_generate(params.translate_x, TRANSLATE_DEFAULT);
-  }
-
-  if (params.has_translate_y) {
-    coeff.translate_y = rng_generate(params.translate_y, TRANSLATE_DEFAULT);
+  if (params.has_translate) {
+    coeff.translate_x = rng_generate(params.translate, TRANSLATE_DEFAULT);
+    coeff.translate_y = rng_generate(params.translate, TRANSLATE_DEFAULT);
   }
 
   if (params.has_rotate) {
