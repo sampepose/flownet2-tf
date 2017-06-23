@@ -1,9 +1,11 @@
 #ifndef FLOWNET_DATA_AUG_H_
 #define FLOWNET_DATA_AUG_H_
 
-#define TRANSLATE_DEFAULT 0x0F
-#define ROTATE_DEFAULT 0x0F
-#define ZOOM_DEFAULT 0x1F
+#define EPSILON 0.0001
+
+#define TRANSLATE_DEFAULT 0.0
+#define ROTATE_DEFAULT 0.0
+#define ZOOM_DEFAULT 1.0
 
 // See docs in ../ops/image_ops.cc.
 #include <random>
@@ -15,6 +17,10 @@
 
 namespace tensorflow {
 typedef Eigen::GpuDevice GPUDevice;
+
+inline bool essentiallyEqual(float a, float b) {
+    return fabs(a - b) <= ( (fabs(a) > fabs(b) ? fabs(b) : fabs(a)) * EPSILON);
+}
 
 class TransMat {
 public:
@@ -145,33 +151,53 @@ public:
   }
 
   void combine_with(const AugmentationCoeffs& coeffs) {
-    if (coeffs.translate_x != TRANSLATE_DEFAULT) {
-      translate_x *= coeffs.translate_x;
+    if (!essentiallyEqual(coeffs.translate_x, TRANSLATE_DEFAULT)) {
+        if (!essentiallyEqual(translate_x, TRANSLATE_DEFAULT)) {
+            translate_x *= coeffs.translate_x;
+        } else {
+            translate_x = coeffs.translate_x;
+        }
     }
 
-    if (coeffs.translate_y != TRANSLATE_DEFAULT) {
-      translate_y *= coeffs.translate_y;
+    if (!essentiallyEqual(coeffs.translate_y, TRANSLATE_DEFAULT)) {
+        if (!essentiallyEqual(translate_y, TRANSLATE_DEFAULT)) {
+            translate_y *= coeffs.translate_y;
+        } else {
+            translate_y = coeffs.translate_y;
+        }
     }
 
-    if (coeffs.rotate != ROTATE_DEFAULT) {
-      rotate *= coeffs.rotate;
+    if (!essentiallyEqual(coeffs.rotate, ROTATE_DEFAULT)) {
+        if (!essentiallyEqual(rotate, ROTATE_DEFAULT)) {
+            rotate *= coeffs.rotate;
+        } else {
+            rotate = coeffs.rotate;
+        }
     }
 
-    if (coeffs.zoom_x != ZOOM_DEFAULT) {
-      zoom_x *= coeffs.zoom_x;
+    if (!essentiallyEqual(coeffs.zoom_x, ZOOM_DEFAULT)) {
+        if (!essentiallyEqual(zoom_x, ZOOM_DEFAULT)) {
+            zoom_x *= coeffs.zoom_x;
+        } else {
+            zoom_x = coeffs.zoom_x;
+        }
     }
 
-    if (coeffs.zoom_y != ZOOM_DEFAULT) {
-      zoom_y *= coeffs.zoom_y;
+    if (!essentiallyEqual(coeffs.zoom_y, ZOOM_DEFAULT)) {
+        if (!essentiallyEqual(zoom_y, ZOOM_DEFAULT)) {
+            zoom_y *= coeffs.zoom_y;
+        } else {
+            zoom_y = coeffs.zoom_y;
+        }
     }
   }
 
   bool do_spatial_transform() {
-    return translate_x != TRANSLATE_DEFAULT ||
-           translate_y != TRANSLATE_DEFAULT ||
-           rotate != ROTATE_DEFAULT ||
-           zoom_x != ZOOM_DEFAULT ||
-           zoom_y != ZOOM_DEFAULT;
+    return !essentiallyEqual(translate_x, TRANSLATE_DEFAULT) ||
+           !essentiallyEqual(translate_y, TRANSLATE_DEFAULT) ||
+           !essentiallyEqual(rotate, ROTATE_DEFAULT) ||
+           !essentiallyEqual(zoom_x, ZOOM_DEFAULT) ||
+           !essentiallyEqual(zoom_y, ZOOM_DEFAULT);
   }
 
   void store_spatial_matrix(const int  out_height,
@@ -186,21 +212,17 @@ public:
 
     t.leftMultiply(1, 0, -0.5 * out_width, 0, 1, -0.5 * out_height);
 
-    if (rotate != ROTATE_DEFAULT) {
+    if (!essentiallyEqual(rotate, ROTATE_DEFAULT)) {
       const float cos_ = cos(rotate);
       const float sin_ = sin(rotate);
       t.leftMultiply(cos_, -sin_, 0, sin_, cos_, 0);
     }
 
-    if (translate_x != TRANSLATE_DEFAULT) {
-      t.leftMultiply(1, 0, translate_x * out_width, 0, 1, 0);
+    if (!essentiallyEqual(translate_x, TRANSLATE_DEFAULT) || !essentiallyEqual(translate_y, TRANSLATE_DEFAULT)) {
+      t.leftMultiply(1, 0, translate_x * out_width, 0, 1, translate_y * out_height);
     }
 
-    if (translate_y != TRANSLATE_DEFAULT) {
-      t.leftMultiply(1, 0, 0, 0, 1, translate_y * out_height);
-    }
-
-    if ((zoom_x != ZOOM_DEFAULT) || (zoom_y != ZOOM_DEFAULT)) {
+    if (!essentiallyEqual(zoom_x, ZOOM_DEFAULT) || !essentiallyEqual(zoom_y, ZOOM_DEFAULT)) {
       t.leftMultiply(1.0 / zoom_x, 0, 0, 0, 1.0 / zoom_y, 0);
     }
 
