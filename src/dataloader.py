@@ -175,7 +175,7 @@ def load_batch(dataset_config, split_name, global_step):
         config_b = config_to_arrays(dataset_config['PREPROCESS']['image_b'])
 
         # Perform data augmentation on GPU
-        image_as, image_bs, spat_mat_a, inv_spat_mat_b = \
+        image_as, image_bs, transforms_from_a, transforms_from_b = \
             _preprocessing_ops.data_augmentation(image_as,
                                                  image_bs,
                                                  crop,
@@ -194,6 +194,6 @@ def load_batch(dataset_config, split_name, global_step):
 
         # Perform flow augmentation using spatial parameters from data augmentation
         flows = _preprocessing_ops.flow_augmentation(
-            flows, spat_mat_a, inv_spat_mat_b, crop)
+            flows, transforms_from_a, transforms_from_b, crop)
 
         return image_as, image_bs, flows
