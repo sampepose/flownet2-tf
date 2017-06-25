@@ -253,7 +253,8 @@ class DataAugmentation : public OpKernel {
       AugmentationLayerBase::copy_spatial_coeffs_to_tensor(coeffs_b,
                                                            out_width, out_height,
                                                            src_width, src_height,
-                                                           spat_transform_b);
+                                                           spat_transform_b,
+                                                           true);
       AugmentationLayerBase::copy_spatial_coeffs_to_tensor(coeffs_b,
                                                            out_width, out_height,
                                                            src_width, src_height,

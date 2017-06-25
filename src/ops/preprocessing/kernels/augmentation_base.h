@@ -179,7 +179,8 @@ class AugmentationLayerBase {
                                               const int out_height,
                                               const int src_width,
                                               const int src_height,
-                                              typename TTypes<float, 2>::Tensor& out);
+                                              typename TTypes<float, 2>::Tensor& out,
+                                              const bool invert = false);
 };
 } // namespace tensorflow
 

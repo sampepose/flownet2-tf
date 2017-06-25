@@ -283,7 +283,8 @@ void AugmentationLayerBase::copy_spatial_coeffs_to_tensor(
   const int out_height,
   const int src_width,
   const int src_height,
-  typename TTypes<float, 2>::Tensor& out)
+  typename TTypes<float, 2>::Tensor& out,
+  const bool invert)
 {
   float   *out_ptr = out.data();
   int      counter = 0;
@@ -292,6 +293,10 @@ void AugmentationLayerBase::copy_spatial_coeffs_to_tensor(
   for (AugmentationCoeff coeff : coeff_arr) {
     t.toIdentity();
     t.fromCoeff(&coeff, out_width, out_height, src_width, src_height);
+
+    if (invert) {
+      t = t.inverse();
+    }
 
     printf("Copying %f %f %f %f %f %f to Tensor\n",
            t.t0,
