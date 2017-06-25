@@ -85,7 +85,7 @@ REGISTER_OP("DataAugmentation")
 
 REGISTER_OP("FlowAugmentation")
 .Input("flows: float32")
-.Input("inv_transforms_from_a: float32")
+.Input("transforms_from_a: float32")
 .Input("transforms_from_b: float32")
 .Attr("crop: list(int) >= 2")
 .Output("transformed_flows: float32")
