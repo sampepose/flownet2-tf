@@ -39,7 +39,7 @@ REGISTER_OP("DataAugmentation")
 .Attr("params_b_prob: list(float)")
 .Output("aug_image_a: float32")
 .Output("aug_image_b: float32")
-.Output("inv_transforms_from_a: float32")
+.Output("transforms_from_a: float32")
 .Output("transforms_from_b: float32")
 .SetShapeFn([](InferenceContext *c) {
     // Verify input A and input B both have 4 dimensions
