@@ -298,14 +298,6 @@ void AugmentationLayerBase::copy_spatial_coeffs_to_tensor(
       t = t.inverse();
     }
 
-    printf("Copying %f %f %f %f %f %f to Tensor\n",
-           t.t0,
-           t.t1,
-           t.t2,
-           t.t3,
-           t.t4,
-           t.t5);
-
     out_ptr[counter + 0] = t.t0;
     out_ptr[counter + 1] = t.t1;
     out_ptr[counter + 2] = t.t2;
@@ -313,14 +305,6 @@ void AugmentationLayerBase::copy_spatial_coeffs_to_tensor(
     out_ptr[counter + 4] = t.t4;
     out_ptr[counter + 5] = t.t5;
     counter             += 6;
-
-    printf("Reading from tensor: %f %f %f %f %f %f\n\n",
-           out_ptr[0],
-           out_ptr[1],
-           out_ptr[2],
-           out_ptr[3],
-           out_ptr[4],
-           out_ptr[5]);
   }
 }
 }

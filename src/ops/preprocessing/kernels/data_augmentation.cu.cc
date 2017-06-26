@@ -37,14 +37,6 @@ __global__ void SpatialAugmentation(
     float xpos            = x * transMat[0] + y * transMat[1] + transMat[2];
     float ypos            = x * transMat[3] + y * transMat[4] + transMat[5];
 
-    if (index == 0) printf("Kernel using transmat %f %f %f %f %f %f\n",
-                           transMat[0],
-                           transMat[1],
-                           transMat[2],
-                           transMat[3],
-                           transMat[4],
-                           transMat[5]);
-
     xpos = clamp(xpos, 0.0f, (float)(src_width) - 1.05f);
     ypos = clamp(ypos, 0.0f, (float)(src_height) - 1.05f);
 
@@ -178,16 +170,11 @@ class DataAugmentation : public OpKernel {
       for (int n = 0; n < batch_size; n++) {
         AugmentationCoeff coeff;
 
-        printf("Coeff before: dx: %f, dy: %f, angle: %f\n", coeff.dx(), coeff.dy(),
-               coeff.angle());
-
         if (gen_spatial_transform) {
           AugmentationLayerBase::generate_valid_spatial_coeffs(aug_a, coeff,
                                                                src_width, src_height,
                                                                out_width, out_height);
         }
-
-        printf("Coeff after: dx: %f, dy: %f, angle: %f\n", coeff.dx(), coeff.dy(), coeff.angle());
 
         coeffs_a.push_back(coeff);
       }
@@ -259,14 +246,6 @@ class DataAugmentation : public OpKernel {
                                                            out_width, out_height,
                                                            src_width, src_height,
                                                            spat_transform_b_pinned);
-
-      printf("Reading from spat_transform_b: %f %f %f %f %f %f to Tensor\n",
-             spat_transform_b.data()[0],
-             spat_transform_b.data()[1],
-             spat_transform_b.data()[2],
-             spat_transform_b.data()[3],
-             spat_transform_b.data()[4],
-             spat_transform_b.data()[5]);
 
       SpatialAugmentation << < config.block_count, config.thread_per_block, 0,
         device.stream() >> > (

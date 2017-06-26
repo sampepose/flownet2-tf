@@ -30,24 +30,6 @@ __global__ void FillFlowAugmentationKernel(
 
     const int transformIdx = n * 6;
 
-
-    if (index == 0) {
-      printf("%d: Using spatial matrix from A: %f %f %f %f %f %f\n", n,
-             transforms_from_a[0],
-             transforms_from_a[1],
-             transforms_from_a[2],
-             transforms_from_a[3],
-             transforms_from_a[4],
-             transforms_from_a[5]);
-      printf("%d: Using INVERSE spatial matrix from B: %f %f %f %f %f %f\n", n,
-             inv_transforms_from_b[0],
-             inv_transforms_from_b[1],
-             inv_transforms_from_b[2],
-             inv_transforms_from_b[3],
-             inv_transforms_from_b[4],
-             inv_transforms_from_b[5]);
-    }
-
     // Apply transformation matrix applied to second image
     const float xpos1 = x * transforms_from_a[transformIdx + 0]
                         + y * transforms_from_a[transformIdx + 1]
