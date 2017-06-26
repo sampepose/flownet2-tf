@@ -129,42 +129,40 @@ class FlowNetS(Net):
     def loss(self, flow, predictions):
         flow = flow * 0.05
 
-        # losses = []
-        # INPUT_HEIGHT, INPUT_WIDTH = float(flow.shape[1].value), float(flow.shape[2].value)
-        #
-        # # L2 loss between predict_flow6, blob23 (weighted w/ 0.32)
-        # predict_flow6 = predictions['predict_flow6']
-        # size = [predict_flow6.shape[1], predict_flow6.shape[2]]
-        # downsampled_flow6 = _downsample.downsample(flow, size)
-        # losses.append(average_endpoint_error(downsampled_flow6, predict_flow6))
-        #
-        # # L2 loss between predict_flow5, blob28 (weighted w/ 0.08)
-        # predict_flow5 = predictions['predict_flow5']
-        # size = [predict_flow5.shape[1], predict_flow5.shape[2]]
-        # downsampled_flow5 = _downsample.downsample(flow, size)
-        # losses.append(average_endpoint_error(downsampled_flow5, predict_flow5))
-        #
-        # # L2 loss between predict_flow4, blob33 (weighted w/ 0.02)
-        # predict_flow4 = predictions['predict_flow4']
-        # size = [predict_flow4.shape[1], predict_flow4.shape[2]]
-        # downsampled_flow4 = _downsample.downsample(flow, size)
-        # losses.append(average_endpoint_error(downsampled_flow4, predict_flow4))
-        #
-        # # L2 loss between predict_flow3, blob38 (weighted w/ 0.01)
-        # predict_flow3 = predictions['predict_flow3']
-        # size = [predict_flow3.shape[1], predict_flow3.shape[2]]
-        # downsampled_flow3 = _downsample.downsample(flow, size)
-        # losses.append(average_endpoint_error(downsampled_flow3, predict_flow3))
-        #
-        # # L2 loss between predict_flow2, blob43 (weighted w/ 0.005)
-        # predict_flow2 = predictions['predict_flow2']
-        # size = [predict_flow2.shape[1], predict_flow2.shape[2]]
-        # downsampled_flow2 = _downsample.downsample(flow, size)
-        # losses.append(average_endpoint_error(downsampled_flow2, predict_flow2))
+        losses = []
+        INPUT_HEIGHT, INPUT_WIDTH = float(flow.shape[1].value), float(flow.shape[2].value)
 
-        # loss = tf.losses.compute_weighted_loss(losses, [0.32, 0.08, 0.02, 0.01, 0.005])
+        # L2 loss between predict_flow6, blob23 (weighted w/ 0.32)
+        predict_flow6 = predictions['predict_flow6']
+        size = [predict_flow6.shape[1], predict_flow6.shape[2]]
+        downsampled_flow6 = _downsample.downsample(flow, size)
+        losses.append(average_endpoint_error(downsampled_flow6, predict_flow6))
 
-        tf.losses.add_loss(average_endpoint_error(flow, predictions['flow']))
+        # L2 loss between predict_flow5, blob28 (weighted w/ 0.08)
+        predict_flow5 = predictions['predict_flow5']
+        size = [predict_flow5.shape[1], predict_flow5.shape[2]]
+        downsampled_flow5 = _downsample.downsample(flow, size)
+        losses.append(average_endpoint_error(downsampled_flow5, predict_flow5))
+
+        # L2 loss between predict_flow4, blob33 (weighted w/ 0.02)
+        predict_flow4 = predictions['predict_flow4']
+        size = [predict_flow4.shape[1], predict_flow4.shape[2]]
+        downsampled_flow4 = _downsample.downsample(flow, size)
+        losses.append(average_endpoint_error(downsampled_flow4, predict_flow4))
+
+        # L2 loss between predict_flow3, blob38 (weighted w/ 0.01)
+        predict_flow3 = predictions['predict_flow3']
+        size = [predict_flow3.shape[1], predict_flow3.shape[2]]
+        downsampled_flow3 = _downsample.downsample(flow, size)
+        losses.append(average_endpoint_error(downsampled_flow3, predict_flow3))
+
+        # L2 loss between predict_flow2, blob43 (weighted w/ 0.005)
+        predict_flow2 = predictions['predict_flow2']
+        size = [predict_flow2.shape[1], predict_flow2.shape[2]]
+        downsampled_flow2 = _downsample.downsample(flow, size)
+        losses.append(average_endpoint_error(downsampled_flow2, predict_flow2))
+
+        loss = tf.losses.compute_weighted_loss(losses, [0.32, 0.08, 0.02, 0.01, 0.005])
 
         # Return the 'total' loss: loss fns + regularization terms defined in the model
         return tf.losses.get_total_loss()

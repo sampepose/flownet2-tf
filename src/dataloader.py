@@ -112,7 +112,7 @@ def __get_dataset(dataset_config, split_name):
             data_sources=dataset_config['PATHS'][split_name],
             reader=reader,
             decoder=decoder,
-            num_samples=1,  # dataset_config['SIZES'][split_name],
+            num_samples=dataset_config['SIZES'][split_name],
             items_to_descriptions=dataset_config['ITEMS_TO_DESCRIPTIONS'])
 
 

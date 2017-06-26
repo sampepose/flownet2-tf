@@ -35,8 +35,8 @@ class Net(object):
         return
 
     def train(self, log_dir, training_schedule, input_a, input_b, flow):
-        tf.summary.image("image_a", tf.expand_dims(input_a[0, :, :, :], 0), max_outputs=1)
-        tf.summary.image("image_b", tf.expand_dims(input_b[0, :, :, :], 0), max_outputs=1)
+        tf.summary.image("image_a", input_a, max_outputs=2)
+        tf.summary.image("image_b", input_b, max_outputs=2)
 
         self.learning_rate = tf.train.piecewise_constant(
             self.global_step,
@@ -60,17 +60,22 @@ class Net(object):
         if 'flow' in predictions:
             pred_flow_0 = predictions['flow'][0, :, :, :]
             pred_flow_0 = tf.py_func(flow_to_image, [pred_flow_0], tf.uint8)
-            pred_flow_0 = tf.expand_dims(pred_flow_0, 0)
-            tf.summary.image('pred_flow', pred_flow_0, max_outputs=1)
+            pred_flow_1 = predictions['flow'][1, :, :, :]
+            pred_flow_1 = tf.py_func(flow_to_image, [pred_flow_1], tf.uint8)
+            pred_flow_img = tf.stack([pred_flow_0, pred_flow_1], 0)
+            tf.summary.image('pred_flow', pred_flow_img, max_outputs=2)
 
         true_flow_0 = flow[0, :, :, :]
         true_flow_0 = tf.py_func(flow_to_image, [true_flow_0], tf.uint8)
-        true_flow_0 = tf.expand_dims(true_flow_0, 0)
-        tf.summary.image('true_flow', true_flow_0, max_outputs=1)
+        true_flow_1 = flow[1, :, :, :]
+        true_flow_1 = tf.py_func(flow_to_image, [true_flow_1], tf.uint8)
+        true_flow_img = tf.stack([true_flow_0, true_flow_1], 0)
+        tf.summary.image('true_flow', true_flow_img, max_outputs=2)
 
         train_op = slim.learning.create_train_op(
             total_loss,
-            optimizer)
+            optimizer,
+            summarize_gradients=True)
 
         if self.debug:
             with tf.Session() as sess:
