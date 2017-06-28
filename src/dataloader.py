@@ -193,8 +193,8 @@ def load_batch(dataset_config, split_name, global_step):
                                                      config_b['spread'],
                                                      config_b['prob'])
 
-        # Perform flow augmentation using spatial parameters from data augmentation
-        flows = _preprocessing_ops.flow_augmentation(
-            flows, transforms_from_a, transforms_from_b, crop)
+            # Perform flow augmentation using spatial parameters from data augmentation
+            flows = _preprocessing_ops.flow_augmentation(
+                flows, transforms_from_a, transforms_from_b, crop)
 
-        return image_as, image_bs, flows
+            return image_as, image_bs, flows
