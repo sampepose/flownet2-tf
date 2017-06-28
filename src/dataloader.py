@@ -175,22 +175,23 @@ def load_batch(dataset_config, split_name, global_step):
         config_b = config_to_arrays(dataset_config['PREPROCESS']['image_b'])
 
         # Perform data augmentation on GPU
-        image_as, image_bs, transforms_from_a, transforms_from_b = \
-            _preprocessing_ops.data_augmentation(image_as,
-                                                 image_bs,
-                                                 crop,
-                                                 config_a['name'],
-                                                 config_a['rand_type'],
-                                                 config_a['exp'],
-                                                 config_a['mean'],
-                                                 config_a['spread'],
-                                                 config_a['prob'],
-                                                 config_b['name'],
-                                                 config_b['rand_type'],
-                                                 config_b['exp'],
-                                                 config_b['mean'],
-                                                 config_b['spread'],
-                                                 config_b['prob'])
+        with tf.device('/cpu:0'):
+            image_as, image_bs, transforms_from_a, transforms_from_b = \
+                _preprocessing_ops.data_augmentation(image_as,
+                                                     image_bs,
+                                                     crop,
+                                                     config_a['name'],
+                                                     config_a['rand_type'],
+                                                     config_a['exp'],
+                                                     config_a['mean'],
+                                                     config_a['spread'],
+                                                     config_a['prob'],
+                                                     config_b['name'],
+                                                     config_b['rand_type'],
+                                                     config_b['exp'],
+                                                     config_b['mean'],
+                                                     config_b['spread'],
+                                                     config_b['prob'])
 
         # Perform flow augmentation using spatial parameters from data augmentation
         flows = _preprocessing_ops.flow_augmentation(

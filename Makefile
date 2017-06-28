@@ -16,7 +16,7 @@ GPULFLAGS = -x cu -Xcompiler -fPIC
 CGPUFLAGS = -L$(CUDA_HOME)/lib -L$(CUDA_HOME)/lib64 -lcudart
 
 OUT_DIR   = src/ops/build
-PREPROCESSING_SRC = "src/ops/preprocessing/preprocessing.cc" "src/ops/preprocessing/kernels/flow_augmentation.cc" "src/ops/preprocessing/kernels/augmentation_base.cc"
+PREPROCESSING_SRC = "src/ops/preprocessing/preprocessing.cc" "src/ops/preprocessing/kernels/flow_augmentation.cc" "src/ops/preprocessing/kernels/augmentation_base.cc" "src/ops/preprocessing/kernels/data_augmentation.cc"
 GPU_SRC_DATA_AUG  	= src/ops/preprocessing/kernels/data_augmentation.cu.cc
 GPU_SRC_FLOW     	= src/ops/preprocessing/kernels/flow_augmentation_gpu.cu.cc
 GPU_PROD_DATA_AUG 	= $(OUT_DIR)/data_augmentation.o
