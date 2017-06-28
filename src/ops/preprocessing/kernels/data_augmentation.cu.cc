@@ -29,8 +29,7 @@ __global__ void SpatialAugmentation(
   const int    out_height,
   const float *src_data,
   float       *out_data,
-  const float *transMats,
-  float       *noise) {
+  const float *transMats) {
   CUDA_1D_KERNEL_LOOP(index, nthreads) {
     // Caffe, NKHW: ((n * K + k) * H + h) * W + w at point (n, k, h, w)
     // TF, NHWK: ((n * H + h) * W + w) * K + k at point (n, h, w, k)
@@ -66,7 +65,7 @@ __global__ void SpatialAugmentation(
                  + (1 - xdist) * (ydist) * src_data[srcBLIdx]
                  + (xdist) * (1 - ydist) * src_data[srcTRIdx];
 
-    out_data[index] = clamp(dest + noise[index], 0.0f, 1.0f);
+    out_data[index] = dest;
   }
 }
 
@@ -83,15 +82,14 @@ void Augment(const GPUDevice& d,
              const int        out_height,
              const float     *src_data,
              float           *out_data,
-             const float     *transMats,
-             float           *noise) {
+             const float     *transMats) {
   const int out_count     = batch_size * out_height * out_width * channels;
   CudaLaunchConfig config = GetCudaLaunchConfig(out_count, d);
 
   SpatialAugmentation << < config.block_count, config.thread_per_block, 0, d.stream() >> > (
     config.virtual_thread_count, src_width, src_height, channels, src_count,
     out_width, out_height,
-    src_data, out_data, transMats, noise);
+    src_data, out_data, transMats);
 }
 
 //

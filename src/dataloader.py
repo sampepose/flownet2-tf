@@ -142,6 +142,78 @@ def config_to_arrays(dataset_config):
     return output
 
 
+# https://github.com/tgebru/transform/blob/master/src/caffe/layers/data_augmentation_layer.cpp#L34
+def _generate_coeff(param, discount_coeff=tf.constant(1.0), default_value=None):
+    if not all(name in param for name in ['rand_type', 'exp', 'mean', 'spread', 'prob']):
+        raise RuntimeError('Expected rand_type, exp, mean, spread, prob in `param`')
+
+    rand_type = param['rand_type']
+    exp = float(param['exp'])
+    mean = tf.convert_to_tensor(param['mean'], dtype=tf.float32)
+    spread = float(param['spread'])  # AKA standard deviation
+    prob = float(param['prob'])
+
+    # Multiply spread by our discount_coeff so it changes over time
+    spread = spread * discount_coeff
+
+    if rand_type == 'uniform':
+        value = tf.cond(spread > 0.0,
+                        lambda: tf.random_uniform([], mean - spread, mean + spread),
+                        lambda: mean)
+        if exp:
+            value = tf.exp(value)
+    elif rand_type == 'gaussian':
+        value = tf.cond(spread > 0.0,
+                        lambda: tf.random_normal([], mean, spread),
+                        lambda: mean)
+        if exp:
+            value = tf.exp(value)
+    elif rand_type == 'bernoulli':
+        if prob > 0.0:
+            value = tf.contrib.distributions.Bernoulli(probs=prob).sample([])
+        else:
+            value = 0.0
+    elif rand_type == 'uniform_bernoulli':
+        tmp1 = 0.0
+        tmp2 = 0
+        if prob > 0.0:
+            tmp2 = tf.contrib.distributions.Bernoulli(probs=prob).sample([])
+        else:
+            tmp2 = 0
+
+        if tmp2 == 0:
+            if default_value is not None:
+                return default_value
+        else:
+            tmp1 = tf.cond(spread > 0.0,
+                           lambda: tf.random_uniform([], mean - spread, mean + spread),
+                           lambda: mean)
+        if exp:
+            tmp1 = tf.exp(tmp1)
+        value = tmp1
+    elif rand_type == 'gaussian_bernoulli':
+        tmp1 = 0.0
+        tmp2 = 0
+        if prob > 0.0:
+            tmp2 = tf.contrib.distributions.Bernoulli(probs=prob).sample([])
+        else:
+            tmp2 = 0
+
+        if tmp2 == 0:
+            if default_value is not None:
+                return default_value
+        else:
+            tmp1 = tf.cond(spread > 0.0,
+                           lambda: tf.random_normal([], mean, spread),
+                           lambda: mean)
+        if exp:
+            tmp1 = tf.exp(tmp1)
+        value = tmp1
+    else:
+        raise ValueError('Unknown distribution type %s.' % rand_type)
+    return value
+
+
 def load_batch(dataset_config, split_name, global_step):
     num_threads = 32
     reader_kwargs = {'options': tf.python_io.TFRecordOptions(
@@ -193,7 +265,36 @@ def load_batch(dataset_config, split_name, global_step):
                                                      config_b['spread'],
                                                      config_b['prob'])
 
-            # Perform flow augmentation using spatial parameters from data augmentation
+            noise_coeff_a = None
+            noise_coeff_b = None
+
+            # Generate and apply noise coeff for A if defined in A params
+            if 'noise' in dataset_config['PREPROCESS']['image_a']:
+                noise_coeff_a = _generate_coeff(dataset_config['PREPROCESS']['image_a']['noise'])
+                noise_a = tf.random_normal(shape=tf.shape(image_as),
+                                           mean=0.0, stddev=noise_coeff_a,
+                                           dtype=tf.float32)
+                image_as = tf.clip_by_value(image_as + noise_a, 0.0, 1.0)
+
+            # Generate noise coeff for B if defined in B params
+            if 'noise' in dataset_config['PREPROCESS']['image_b']:
+                noise_coeff_b = _generate_coeff(dataset_config['PREPROCESS']['image_b']['noise'])
+
+            # Combine coeff from a with coeff from b
+            if noise_coeff_a is not None:
+                if noise_coeff_b is not None:
+                    noise_coeff_b = noise_coeff_a * noise_coeff_b
+                else:
+                    noise_coeff_b = noise_coeff_a
+
+            # Add noise to B if needed
+            if noise_coeff_b is not None:
+                noise_b = tf.random_normal(shape=tf.shape(image_bs),
+                                           mean=0.0, stddev=noise_coeff_b,
+                                           dtype=tf.float32)
+                image_bs = tf.clip_by_value(image_bs + noise_b, 0.0, 1.0)
+
+                # Perform flow augmentation using spatial parameters from data augmentation
             flows = _preprocessing_ops.flow_augmentation(
                 flows, transforms_from_a, transforms_from_b, crop)
 

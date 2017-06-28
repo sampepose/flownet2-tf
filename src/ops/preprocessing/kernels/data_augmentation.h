@@ -13,7 +13,6 @@ void Augment(const Device& d,
              const int     out_height,
              const float  *src_data,
              float        *out_data,
-             const float  *transMats,
-             float        *noise);
+             const float  *transMats);
 } // namespace tensorflow
 #endif // FLOWNET_DATA_AUGMENTATION_H_
