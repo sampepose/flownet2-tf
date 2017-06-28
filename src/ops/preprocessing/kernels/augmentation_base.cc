@@ -88,9 +88,11 @@ void AugmentationCoeff::clear() {
   angle.clear();
   zoom_x.clear();
   zoom_y.clear();
+  noise.clear();
 }
 
 void AugmentationCoeff::combine_with(const AugmentationCoeff& coeff) {
+  // Spatial types
   if (coeff.dx) {
     dx = dx() * coeff.dx();
   }
@@ -110,9 +112,15 @@ void AugmentationCoeff::combine_with(const AugmentationCoeff& coeff) {
   if (coeff.zoom_y) {
     zoom_y = zoom_y() * coeff.zoom_y();
   }
+
+  // Effect types
+  if (coeff.noise) {
+    noise = noise() * coeff.noise();
+  }
 }
 
 void AugmentationCoeff::replace_with(const AugmentationCoeff& coeff) {
+  // Spatial types
   if (coeff.dx) {
     dx = coeff.dx();
   }
@@ -131,6 +139,11 @@ void AugmentationCoeff::replace_with(const AugmentationCoeff& coeff) {
 
   if (coeff.zoom_y) {
     zoom_y = coeff.zoom_y();
+  }
+
+  // Effect types
+  if (coeff.noise) {
+    noise = coeff.noise();
   }
 }
 
@@ -197,9 +210,15 @@ float AugmentationLayerBase::rng_generate(const AugmentationParam& param,
   }
 }
 
-void AugmentationLayerBase::generate_spatial_coeffs(
-  const AugmentationParams& aug,
-  AugmentationCoeff       & coeff) {
+void AugmentationLayerBase::generate_effect_coeffs(const AugmentationParams& aug,
+                                                   AugmentationCoeff       & coeff) {
+  if (aug.noise) {
+    coeff.noise = rng_generate(aug.noise(), coeff.noise.get_default());
+  }
+}
+
+void AugmentationLayerBase::generate_spatial_coeffs(const AugmentationParams& aug,
+                                                    AugmentationCoeff       & coeff) {
   if (aug.translate) {
     coeff.dx = rng_generate(aug.translate(), coeff.dx.get_default());
     coeff.dy = rng_generate(aug.translate(), coeff.dy.get_default());

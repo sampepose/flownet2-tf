@@ -43,16 +43,19 @@ class OptionalType {
 
 class AugmentationCoeff {
   public:
+    // Spatial Types
     OptionalType<float>dx;
     OptionalType<float>dy;
     OptionalType<float>angle;
     OptionalType<float>zoom_x;
     OptionalType<float>zoom_y;
 
-    AugmentationCoeff() : dx(0.0), dy(0.0), angle(0.0), zoom_x(1.0), zoom_y(1.0) {}
+    // Effect Types
+    OptionalType<float>noise;
 
-    AugmentationCoeff(const AugmentationCoeff& coeff) : dx(0.0), dy(0.0), angle(0.0), zoom_x(1.0),
-      zoom_y(1.0) {
+    AugmentationCoeff() : dx(0.0), dy(0.0), angle(0.0), zoom_x(1.0), zoom_y(1.0), noise(0.0) {}
+
+    AugmentationCoeff(const AugmentationCoeff& coeff) : AugmentationCoeff() {
       replace_with(coeff);
     }
 
@@ -75,10 +78,15 @@ class AugmentationParams {
   public:
     int crop_height;
     int crop_width;
+
+    // Spatial options
     OptionalType<struct AugmentationParam>translate;
     OptionalType<struct AugmentationParam>rotate;
     OptionalType<struct AugmentationParam>zoom;
     OptionalType<struct AugmentationParam>squeeze;
+
+    // Effect options
+    OptionalType<struct AugmentationParam>noise;
 
     inline AugmentationParams(int                     crop_height,
                               int                     crop_width,
@@ -93,7 +101,8 @@ class AugmentationParams {
       translate(AugmentationParam()),
       rotate(AugmentationParam()),
       zoom(AugmentationParam()),
-      squeeze(AugmentationParam()) {
+      squeeze(AugmentationParam()),
+      noise(AugmentationParam()) {
       for (int i = 0; i < params_name.size(); i++) {
         const std::string name      = params_name[i];
         const std::string rand_type = params_rand_type[i];
@@ -112,6 +121,8 @@ class AugmentationParams {
           this->zoom = param;
         }  else if (name == "squeeze") {
           this->squeeze = param;
+        } else if (name == "noise") {
+          this->noise = param;
         } else {
           std::cout << "Ignoring unknown augmentation parameter: " << name << std::endl;
         }
@@ -120,6 +131,10 @@ class AugmentationParams {
 
     bool should_do_spatial_transform() {
       return this->translate || this->rotate || this->zoom || this->squeeze;
+    }
+
+    bool should_do_effects_transform() {
+      return this->noise;
     }
 };
 
@@ -159,14 +174,14 @@ class AugmentationLayerBase {
 
     // TODO: Class ChromaticCoeffs
 
-    // TODO: Class EffectCoeffs
-
     static float rng_generate(const AugmentationParam& param,
                               const float              default_value);
 
     static void  clear_spatial_coeffs(AugmentationCoeff& coeff);
     static void  generate_spatial_coeffs(const AugmentationParams& aug,
                                          AugmentationCoeff       & coeff);
+    static void  generate_effect_coeffs(const AugmentationParams& aug,
+                                        AugmentationCoeff       & coeff);
     static void  generate_valid_spatial_coeffs(const AugmentationParams& aug,
                                                AugmentationCoeff       & coeff,
                                                int                       src_width,

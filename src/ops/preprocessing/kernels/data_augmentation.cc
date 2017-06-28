@@ -1,6 +1,9 @@
 #define EIGEN_USE_THREADS
 
 #include <algorithm>
+#include <iostream>
+#include <random>
+#include <vector>
 
 #include "augmentation_base.h"
 #include "data_augmentation.h"
@@ -33,7 +36,8 @@ void Augment(const CPUDevice& d,
              const int        out_height,
              const float     *src_data,
              float           *out_data,
-             const float     *transMats) {
+             const float     *transMats,
+             float           *noise) {
   for (int n = 0; n < batch_size; n++) {
     const float *transMat = transMats + n * 6;
 
@@ -84,11 +88,68 @@ void Augment(const CPUDevice& d,
                        + (1 - xdist) * (ydist) * src_data[srcBLIdx]
                        + (xdist) * (1 - ydist) * src_data[srcTRIdx];
 
-          out_data[outIdxOffset + c] = dest;
+          out_data[outIdxOffset + c] = clamp(dest + noise[outIdxOffset + c], 0.0f, 1.0f);
         }
       }
     }
   }
+}
+
+float* generate_noise_matrix(OpKernelContext                *ctx,
+                             std::vector<AugmentationCoeff>& coeffs,
+                             const int                       batch_size,
+                             const int                       out_height,
+                             const int                       out_width,
+                             const int                       channels) {
+  Tensor noise_t;
+
+  std::random_device rd;
+  std::mt19937 gen(rd());
+
+  // TODO: might need pinned allocator for gpu
+  //   tensorflow::AllocatorAttributes allocator;
+
+  auto status = ctx->allocate_temp(DataTypeToEnum<float>::value,
+                                   TensorShape({ batch_size, out_height, out_width,
+                                                 channels }),
+                                   &noise_t);
+
+  do {
+    ::tensorflow::Status _s(status);
+
+    if (!TF_PREDICT_TRUE(_s.ok())) {
+      ctx->CtxFailureWithWarning(_s);
+    }
+  } while (0);
+
+  auto   noise      = noise_t.tensor<float, 4>();
+  float *noise_data = noise.data();
+
+  int offsetN, offsetY, offsetX;
+
+  for (int n = 0; n < batch_size; n++) {
+    // If not augmenting noise for this specific batch iteration, move on
+    if (!coeffs[n].noise) {
+      continue;
+    }
+
+    offsetN = n;
+    std::normal_distribution<float> normal_dist(0, coeffs[n].noise());
+
+    for (int y = 0; y < out_height; y++) {
+      offsetY = offsetN * out_height + y;
+
+      for (int x = 0; x < out_width; x++) {
+        offsetX = offsetY * out_width + x;
+
+        for (int c = 0; c < channels; c++) {
+          noise_data[offsetX * channels + c] = normal_dist(gen);
+        }
+      }
+    }
+  }
+
+  return noise_data;
 }
 
 template<typename Device>
@@ -173,7 +234,9 @@ class DataAugmentation : public OpKernel {
 
       std::vector<AugmentationCoeff> coeffs_a;
 
+
       bool gen_spatial_transform = aug_a.should_do_spatial_transform();
+      bool gen_effects_transform = aug_a.should_do_effects_transform();
 
       for (int n = 0; n < batch_size; n++) {
         AugmentationCoeff coeff;
@@ -182,6 +245,10 @@ class DataAugmentation : public OpKernel {
           AugmentationLayerBase::generate_valid_spatial_coeffs(aug_a, coeff,
                                                                src_width, src_height,
                                                                out_width, out_height);
+        }
+
+        if (gen_effects_transform) {
+          AugmentationLayerBase::generate_effect_coeffs(aug_a, coeff);
         }
 
         coeffs_a.push_back(coeff);
@@ -195,6 +262,16 @@ class DataAugmentation : public OpKernel {
                                                            src_width, src_height,
                                                            spat_transform_a);
 
+      // Generate a 4D tensor of noise (or zero tensor if no noise)
+      // TODO: Optimize this. Pass a NULL float pointer if augmentation param
+      // has no noise.
+      float *noise_a_data = generate_noise_matrix(ctx,
+                                                  coeffs_a,
+                                                  batch_size,
+                                                  out_height,
+                                                  out_width,
+                                                  channels);
+
       // Perform augmentation either on CPU or GPU
       Augment<Device>(
         ctx->eigen_device<Device>(),
@@ -207,7 +284,8 @@ class DataAugmentation : public OpKernel {
         out_height,
         input_a.data(),
         output_a.data(),
-        spat_transform_a.data());
+        spat_transform_a.data(),
+        noise_a_data);
 
       /*** END AUGMENTATION TO IMAGE A ***/
 
@@ -223,9 +301,9 @@ class DataAugmentation : public OpKernel {
       std::vector<AugmentationCoeff> coeffs_b;
 
       bool gen_spatial_transform_b = aug_b.should_do_spatial_transform();
+      bool gen_effects_transform_b = aug_b.should_do_effects_transform();
 
       for (int n = 0; n < batch_size; n++) {
-        // TODO: This will break if spatially augmenting image B but not image A
         AugmentationCoeff coeff(coeffs_a[n]);
 
         // If we did a spatial transform on image A, we need to do the same one
@@ -234,6 +312,10 @@ class DataAugmentation : public OpKernel {
           AugmentationLayerBase::generate_valid_spatial_coeffs(aug_b, coeff,
                                                                src_width, src_height,
                                                                out_width, out_height);
+        }
+
+        if (gen_effects_transform_b) {
+          AugmentationLayerBase::generate_effect_coeffs(aug_b, coeff);
         }
 
         coeffs_b.push_back(coeff);
@@ -252,6 +334,16 @@ class DataAugmentation : public OpKernel {
                                                            src_width, src_height,
                                                            spat_transform_b);
 
+      // Generate a 4D tensor of noise (or zero tensor if no noise)
+      // TODO: Optimize this. Pass a NULL float pointer if augmentation param
+      // has no noise.
+      float *noise_b_data = generate_noise_matrix(ctx,
+                                                  coeffs_b,
+                                                  batch_size,
+                                                  out_height,
+                                                  out_width,
+                                                  channels);
+
       // Perform augmentation either on CPU or GPU
       Augment<Device>(
         ctx->eigen_device<Device>(),
@@ -264,7 +356,8 @@ class DataAugmentation : public OpKernel {
         out_height,
         input_b.data(),
         output_b.data(),
-        spat_transform_b.data());
+        spat_transform_b.data(),
+        noise_b_data);
 
       // FlowAugmentation needs the inverse
       // TODO: To avoid rewriting, can we invert when we read on the
