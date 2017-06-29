@@ -82,9 +82,12 @@ void Augment(const GPUDevice& d,
              const int        out_height,
              const float     *src_data,
              float           *out_data,
-             const float     *transMats) {
+             const float     *transMats,
+             float           *chromatic_coeffs) {
   const int out_count     = batch_size * out_height * out_width * channels;
   CudaLaunchConfig config = GetCudaLaunchConfig(out_count, d);
+
+  printf("Chromatic transform not yet implemented on GPU, ignoring.");
 
   SpatialAugmentation << < config.block_count, config.thread_per_block, 0, d.stream() >> > (
     config.virtual_thread_count, src_width, src_height, channels, src_count,

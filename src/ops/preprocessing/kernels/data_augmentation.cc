@@ -36,17 +36,18 @@ void Augment(const CPUDevice& d,
              const int        out_height,
              const float     *src_data,
              float           *out_data,
-             const float     *transMats) {
+             const float     *transMats,
+             float           *chromatic_coeffs) {
   for (int n = 0; n < batch_size; n++) {
     const float *transMat = transMats + n * 6;
 
-    printf("Using transmat: %f %f %f %f %f %f\n",
-           transMat[0],
-           transMat[1],
-           transMat[2],
-           transMat[3],
-           transMat[4],
-           transMat[5]);
+    float gamma, brightness, contrast;
+
+    if (chromatic_coeffs) {
+      gamma      = chromatic_coeffs[n * 6 + 0];
+      brightness = chromatic_coeffs[n * 6 + 1];
+      contrast   = chromatic_coeffs[n * 6 + 2];
+    }
 
     for (int y = 0; y < out_height; y++) {
       for (int x = 0; x < out_width; x++) {
@@ -75,6 +76,12 @@ void Augment(const CPUDevice& d,
 
         int outIdxOffset = ((n * out_height + y) * out_width + x) * channels;
 
+        // Variables for chromatic transform
+        int   data_index[3];
+        float rgb[3];
+        float mean_in  = 0;
+        float mean_out = 0;
+
         for (int c = 0; c < channels; c++) {
           // Bilinear interpolation
           int srcTLIdx = srcTLIdxOffset + c;
@@ -87,7 +94,40 @@ void Augment(const CPUDevice& d,
                        + (1 - xdist) * (ydist) * src_data[srcBLIdx]
                        + (xdist) * (1 - ydist) * src_data[srcTRIdx];
 
-          out_data[outIdxOffset + c] = dest;
+          if (chromatic_coeffs) {
+            // Gather data for chromatic transform
+            data_index[c] = outIdxOffset + c;
+            rgb[c]        = dest;
+            mean_in      += rgb[c];
+
+            // Note: coeff[3] == color1, coeff[4] == color2, ...
+            rgb[c] *= chromatic_coeffs[n * 6 + (3 + c)];
+
+            mean_out += rgb[c];
+          } else {
+            out_data[outIdxOffset + c] = dest;
+          }
+        }
+
+        float brightness_coeff = mean_in / (mean_out + 0.01f);
+
+        if (chromatic_coeffs) {
+          // Chromatic transformation
+          for (int c = 0; c < channels; c++) {
+            // compensate brightness
+            rgb[c] = clamp(rgb[c] * brightness_coeff, 0.0f, 1.0f);
+
+            // gamma change
+            rgb[c] = pow(rgb[c], gamma);
+
+            // brightness change
+            rgb[c] = rgb[c] + brightness;
+
+            // contrast change
+            rgb[c] = 0.5f + (rgb[c] - 0.5f) * contrast;
+
+            out_data[data_index[c]] = clamp(rgb[c], 0.0f, 1.0f);
+          }
         }
       }
     }
@@ -139,6 +179,10 @@ class DataAugmentation : public OpKernel {
       const int out_width  = crop_[1];
       const int out_count  = batch_size * out_height * out_width * channels;
 
+      // All tensors for this op
+      Tensor chromatic_coeffs_a_t;
+      Tensor chromatic_coeffs_b_t;
+
       // Allocate the memory for the output images
       Tensor *output_a_t;
       Tensor *output_b_t;
@@ -177,7 +221,8 @@ class DataAugmentation : public OpKernel {
       std::vector<AugmentationCoeff> coeffs_a;
 
 
-      bool gen_spatial_transform = aug_a.should_do_spatial_transform();
+      bool gen_spatial_transform   = aug_a.should_do_spatial_transform();
+      bool gen_chromatic_transform = aug_a.should_do_chromatic_transform();
 
       for (int n = 0; n < batch_size; n++) {
         AugmentationCoeff coeff;
@@ -186,6 +231,10 @@ class DataAugmentation : public OpKernel {
           AugmentationLayerBase::generate_valid_spatial_coeffs(aug_a, coeff,
                                                                src_width, src_height,
                                                                out_width, out_height);
+        }
+
+        if (gen_chromatic_transform) {
+          AugmentationLayerBase::generate_chromatic_coeffs(aug_a, coeff);
         }
 
         coeffs_a.push_back(coeff);
@@ -199,6 +248,21 @@ class DataAugmentation : public OpKernel {
                                                            src_width, src_height,
                                                            spat_transform_a);
 
+      float *chromatic_coeffs_a_data = NULL;
+
+      if (gen_chromatic_transform) {
+        // Allocate a temporary tensor to hold the chromatic coefficients
+        OP_REQUIRES_OK(ctx,
+                       ctx->allocate_temp(DataTypeToEnum<float>::value,
+                                          TensorShape({ batch_size, 6 }),
+                                          &chromatic_coeffs_a_t));
+
+        // Copy the chromatic coefficients A to a temporary Tensor on the CPU
+        auto chromatic_coeffs_a = chromatic_coeffs_a_t.tensor<float, 2>();
+        AugmentationLayerBase::copy_chromatic_coeffs_to_tensor(coeffs_a, chromatic_coeffs_a);
+        chromatic_coeffs_a_data = chromatic_coeffs_a.data();
+      }
+
       // Perform augmentation either on CPU or GPU
       Augment<Device>(
         ctx->eigen_device<Device>(),
@@ -211,7 +275,8 @@ class DataAugmentation : public OpKernel {
         out_height,
         input_a.data(),
         output_a.data(),
-        spat_transform_a.data());
+        spat_transform_a.data(),
+        chromatic_coeffs_a_data);
 
       /*** END AUGMENTATION TO IMAGE A ***/
 
@@ -226,7 +291,8 @@ class DataAugmentation : public OpKernel {
 
       std::vector<AugmentationCoeff> coeffs_b;
 
-      bool gen_spatial_transform_b = aug_b.should_do_spatial_transform();
+      bool gen_spatial_transform_b   = aug_b.should_do_spatial_transform();
+      bool gen_chromatic_transform_b = aug_b.should_do_chromatic_transform();
 
       for (int n = 0; n < batch_size; n++) {
         AugmentationCoeff coeff(coeffs_a[n]);
@@ -237,6 +303,10 @@ class DataAugmentation : public OpKernel {
           AugmentationLayerBase::generate_valid_spatial_coeffs(aug_b, coeff,
                                                                src_width, src_height,
                                                                out_width, out_height);
+        }
+
+        if (gen_chromatic_transform_b) {
+          AugmentationLayerBase::generate_chromatic_coeffs(aug_b, coeff);
         }
 
         coeffs_b.push_back(coeff);
@@ -255,6 +325,24 @@ class DataAugmentation : public OpKernel {
                                                            src_width, src_height,
                                                            spat_transform_b);
 
+      float *chromatic_coeffs_b_data = NULL;
+
+      if (gen_chromatic_transform || gen_chromatic_transform_b) {
+        // Allocate a temporary tensor to hold the chromatic coefficients
+        tensorflow::AllocatorAttributes pinned_allocator;
+        pinned_allocator.set_on_host(true);
+        pinned_allocator.set_gpu_compatible(true);
+        OP_REQUIRES_OK(ctx,
+                       ctx->allocate_temp(DataTypeToEnum<float>::value,
+                                          TensorShape({ batch_size, 6 }),
+                                          &chromatic_coeffs_b_t, pinned_allocator));
+
+        // Copy the chromatic coefficients A to a temporary Tensor on the CPU
+        auto chromatic_coeffs_b = chromatic_coeffs_b_t.tensor<float, 2>();
+        AugmentationLayerBase::copy_chromatic_coeffs_to_tensor(coeffs_b, chromatic_coeffs_b);
+        chromatic_coeffs_b_data = chromatic_coeffs_b.data();
+      }
+
       // Perform augmentation either on CPU or GPU
       Augment<Device>(
         ctx->eigen_device<Device>(),
@@ -267,7 +355,8 @@ class DataAugmentation : public OpKernel {
         out_height,
         input_b.data(),
         output_b.data(),
-        spat_transform_b.data());
+        spat_transform_b.data(),
+        chromatic_coeffs_b_data);
 
       // FlowAugmentation needs the inverse
       // TODO: To avoid rewriting, can we invert when we read on the

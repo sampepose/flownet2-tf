@@ -83,11 +83,20 @@ void AugmentationLayerBase::TransMat::toIdentity() {
 
 /** AugmentationCoeff Functions **/
 void AugmentationCoeff::clear() {
+  // Spatial variables
   dx.clear();
   dy.clear();
   angle.clear();
   zoom_x.clear();
   zoom_y.clear();
+
+  // Chromatic variables
+  gamma.clear();
+  brightness.clear();
+  contrast.clear();
+  color1.clear();
+  color2.clear();
+  color3.clear();
 }
 
 void AugmentationCoeff::combine_with(const AugmentationCoeff& coeff) {
@@ -111,6 +120,31 @@ void AugmentationCoeff::combine_with(const AugmentationCoeff& coeff) {
   if (coeff.zoom_y) {
     zoom_y = zoom_y() * coeff.zoom_y();
   }
+
+  // Chromatic types
+  if (coeff.gamma) {
+    gamma = gamma() * coeff.gamma();
+  }
+
+  if (coeff.brightness) {
+    brightness = brightness() * coeff.brightness();
+  }
+
+  if (coeff.contrast) {
+    contrast = contrast() * coeff.contrast();
+  }
+
+  if (coeff.color1) {
+    color1 = color1() * coeff.color1();
+  }
+
+  if (coeff.color2) {
+    color2 = color2() * coeff.color2();
+  }
+
+  if (coeff.color3) {
+    color3 = color3() * coeff.color3();
+  }
 }
 
 void AugmentationCoeff::replace_with(const AugmentationCoeff& coeff) {
@@ -133,6 +167,31 @@ void AugmentationCoeff::replace_with(const AugmentationCoeff& coeff) {
 
   if (coeff.zoom_y) {
     zoom_y = coeff.zoom_y();
+  }
+
+  // Chromatic types
+  if (coeff.gamma) {
+    gamma = gamma() * coeff.gamma();
+  }
+
+  if (coeff.brightness) {
+    brightness = coeff.brightness();
+  }
+
+  if (coeff.contrast) {
+    contrast = coeff.contrast();
+  }
+
+  if (coeff.color1) {
+    color1 = coeff.color1();
+  }
+
+  if (coeff.color2) {
+    color2 = coeff.color2();
+  }
+
+  if (coeff.color3) {
+    color3 = coeff.color3();
   }
 }
 
@@ -196,6 +255,27 @@ float AugmentationLayerBase::rng_generate(const AugmentationParam& param,
     return tmp1;
   } else {
     throw "Unknown random type: " + param.rand_type;
+  }
+}
+
+void AugmentationLayerBase::generate_chromatic_coeffs(const AugmentationParams& aug,
+                                                      AugmentationCoeff       & coeff) {
+  if (aug.gamma) {
+    coeff.gamma = rng_generate(aug.gamma(), coeff.gamma.get_default());
+  }
+
+  if (aug.brightness) {
+    coeff.brightness = rng_generate(aug.brightness(), coeff.brightness.get_default());
+  }
+
+  if (aug.contrast) {
+    coeff.contrast = rng_generate(aug.contrast(), coeff.contrast.get_default());
+  }
+
+  if (aug.color) {
+    coeff.color1 = rng_generate(aug.color(), coeff.color1.get_default());
+    coeff.color2 = rng_generate(aug.color(), coeff.color2.get_default());
+    coeff.color3 = rng_generate(aug.color(), coeff.color3.get_default());
   }
 }
 
@@ -275,6 +355,24 @@ void AugmentationLayerBase::generate_valid_spatial_coeffs(
     printf("Warning: No suitable spatial transformation after %d attempts.\n", counter);
     coeff.clear();
     coeff.replace_with(incoming_coeff);
+  }
+}
+
+void AugmentationLayerBase::copy_chromatic_coeffs_to_tensor(
+  const std::vector<AugmentationCoeff>& coeff_arr,
+  typename TTypes<float, 2>::Tensor& out)
+{
+  float *out_ptr = out.data();
+  int    counter = 0;
+
+  for (AugmentationCoeff coeff : coeff_arr) {
+    out_ptr[counter + 0] = coeff.gamma();
+    out_ptr[counter + 1] = coeff.brightness();
+    out_ptr[counter + 2] = coeff.contrast();
+    out_ptr[counter + 3] = coeff.color1();
+    out_ptr[counter + 4] = coeff.color2();
+    out_ptr[counter + 5] = coeff.color3();
+    counter             += 6;
   }
 }
 

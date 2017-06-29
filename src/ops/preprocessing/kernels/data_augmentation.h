@@ -13,6 +13,7 @@ void Augment(const Device& d,
              const int     out_height,
              const float  *src_data,
              float        *out_data,
-             const float  *transMats);
+             const float  *transMats,
+             float        *chromatic_coeffs);
 } // namespace tensorflow
 #endif // FLOWNET_DATA_AUGMENTATION_H_
