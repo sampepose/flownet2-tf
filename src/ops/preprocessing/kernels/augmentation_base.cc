@@ -338,6 +338,10 @@ void AugmentationLayerBase::generate_valid_spatial_coeffs(
         x2 = x2 + coeff.dx() * out_width;
         y2 = y2 + coeff.dy() * out_height;
 
+        // zoom
+        x2 = x2 / coeff.zoom_x();
+        y2 = y2 / coeff.zoom_y();
+
         // move the origin back
         x2 = x2 + 0.5 * src_width;
         y2 = y2 + 0.5 * src_height;

@@ -72,7 +72,8 @@ __global__ void SpatialAugmentation(
 typedef Eigen::GpuDevice GPUDevice;
 
 template<>
-void Augment(const GPUDevice& d,
+void Augment(OpKernelContext *context,
+             const GPUDevice& d,
              const int        batch_size,
              const int        channels,
              const int        src_width,

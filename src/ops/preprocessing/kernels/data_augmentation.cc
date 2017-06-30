@@ -17,6 +17,8 @@
 #include "tensorflow/core/lib/core/status.h"
 #include "tensorflow/core/platform/logging.h"
 
+#include "tensorflow/core/util/work_sharder.h"
+
 namespace tensorflow {
 typedef Eigen::ThreadPoolDevice CPUDevice;
 typedef Eigen::GpuDevice        GPUDevice;
@@ -26,7 +28,8 @@ inline float clamp(float f, float a, float b) {
 }
 
 template<>
-void Augment(const CPUDevice& d,
+void Augment(OpKernelContext *context,
+             const CPUDevice& d,
              const int        batch_size,
              const int        channels,
              const int        src_width,
@@ -38,19 +41,35 @@ void Augment(const CPUDevice& d,
              float           *out_data,
              const float     *transMats,
              float           *chromatic_coeffs) {
-  for (int n = 0; n < batch_size; n++) {
-    const float *transMat = transMats + n * 6;
+  const int64 channel_count                          = batch_size * out_height * out_width;
+  const int   kCostPerChannel                        = 10;
+  const DeviceBase::CpuWorkerThreads& worker_threads =
+    *context->device()->tensorflow_cpu_worker_threads();
 
-    float gamma, brightness, contrast;
+  Shard(worker_threads.num_threads,
+        worker_threads.workers,
+        channel_count,
+        kCostPerChannel,
+        [batch_size, channels, src_width,
+         src_height, src_count, out_width, out_height, src_data,
+         out_data, transMats, chromatic_coeffs](
+          int64 start_channel, int64 end_channel) {
+      // TF, NHWK: ((n * H + h) * W + w) * K + k at point (n, h, w, k)
+      for (int index = start_channel; index < end_channel; index++) {
+        int x = index % out_width;
+        int y = (index / out_width) % out_height;
+        int n = index / out_width / out_height;
 
-    if (chromatic_coeffs) {
-      gamma      = chromatic_coeffs[n * 6 + 0];
-      brightness = chromatic_coeffs[n * 6 + 1];
-      contrast   = chromatic_coeffs[n * 6 + 2];
-    }
+        const float *transMat = transMats + n * 6;
 
-    for (int y = 0; y < out_height; y++) {
-      for (int x = 0; x < out_width; x++) {
+        float gamma, brightness, contrast;
+
+        if (chromatic_coeffs) {
+          gamma      = chromatic_coeffs[n * 6 + 0];
+          brightness = chromatic_coeffs[n * 6 + 1];
+          contrast   = chromatic_coeffs[n * 6 + 2];
+        }
+
         float xpos = x * transMat[0] + y * transMat[1] + transMat[2];
         float ypos = x * transMat[3] + y * transMat[4] + transMat[5];
 
@@ -74,8 +93,6 @@ void Augment(const CPUDevice& d,
         // ((n * src_height + (tly + 1)) * src_width + (tlx + 1)) * channels
         int srcBRIdxOffset = srcTLIdxOffset + channels + channels * src_width;
 
-        int outIdxOffset = ((n * out_height + y) * out_width + x) * channels;
-
         // Variables for chromatic transform
         int   data_index[3];
         float rgb[3];
@@ -96,7 +113,7 @@ void Augment(const CPUDevice& d,
 
           if (chromatic_coeffs) {
             // Gather data for chromatic transform
-            data_index[c] = outIdxOffset + c;
+            data_index[c] = index * channels + c;
             rgb[c]        = dest;
             mean_in      += rgb[c];
 
@@ -105,7 +122,7 @@ void Augment(const CPUDevice& d,
 
             mean_out += rgb[c];
           } else {
-            out_data[outIdxOffset + c] = dest;
+            out_data[index * channels + c] = dest;
           }
         }
 
@@ -130,8 +147,7 @@ void Augment(const CPUDevice& d,
           }
         }
       }
-    }
-  }
+    });
 }
 
 template<typename Device>
@@ -265,6 +281,7 @@ class DataAugmentation : public OpKernel {
 
       // Perform augmentation either on CPU or GPU
       Augment<Device>(
+        ctx,
         ctx->eigen_device<Device>(),
         batch_size,
         channels,
@@ -345,6 +362,7 @@ class DataAugmentation : public OpKernel {
 
       // Perform augmentation either on CPU or GPU
       Augment<Device>(
+        ctx,
         ctx->eigen_device<Device>(),
         batch_size,
         channels,
