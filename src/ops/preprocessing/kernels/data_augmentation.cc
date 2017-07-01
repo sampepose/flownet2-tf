@@ -169,6 +169,7 @@ class DataAugmentation : public OpKernel {
       OP_REQUIRES_OK(ctx, ctx->GetAttr("params_a_mean", &params_a_mean_));
       OP_REQUIRES_OK(ctx, ctx->GetAttr("params_a_spread", &params_a_spread_));
       OP_REQUIRES_OK(ctx, ctx->GetAttr("params_a_prob", &params_a_prob_));
+      OP_REQUIRES_OK(ctx, ctx->GetAttr("params_a_coeff_schedule", &params_a_coeff_schedule_));
 
       // Get the tensors for params_b and verify their dimensions
       OP_REQUIRES_OK(ctx, ctx->GetAttr("params_b_name", &params_b_name_));
@@ -178,12 +179,18 @@ class DataAugmentation : public OpKernel {
       OP_REQUIRES_OK(ctx, ctx->GetAttr("params_b_mean", &params_b_mean_));
       OP_REQUIRES_OK(ctx, ctx->GetAttr("params_b_spread", &params_b_spread_));
       OP_REQUIRES_OK(ctx, ctx->GetAttr("params_b_prob", &params_b_prob_));
+      OP_REQUIRES_OK(ctx, ctx->GetAttr("params_b_coeff_schedule", &params_b_coeff_schedule_));
     }
 
     void Compute(OpKernelContext *ctx) override {
       // Get the input images
       const Tensor& input_a_t = ctx->input(0);
       const Tensor& input_b_t = ctx->input(1);
+
+      // Get the global step value
+      const Tensor& global_step_t = ctx->input(2);
+      auto global_step_eigen      = global_step_t.tensor<int64, 0>();
+      const int64 global_step     = global_step_eigen.data()[0];
 
       // Dimension constants
       const int batch_size = input_a_t.dim_size(0);
@@ -221,6 +228,30 @@ class DataAugmentation : public OpKernel {
                      ctx->allocate_output(3, TensorShape({ batch_size, 6 }),
                                           &spat_transform_b_t));
 
+      // Compute discount for coefficients if using a schedule
+      float discount_coeff_a = 1.0;
+      float discount_coeff_b = 1.0;
+
+      if (params_a_coeff_schedule_.size() == 3) {
+        float half_life     = params_a_coeff_schedule_[0];
+        float initial_coeff = params_a_coeff_schedule_[1];
+        float final_coeff   = params_a_coeff_schedule_[2];
+        discount_coeff_a = initial_coeff + (final_coeff - initial_coeff) *
+                           (2.0 / (1.0 + exp(-1.0986 * global_step / half_life)) - 1.0);
+      }
+
+      if (params_b_coeff_schedule_.size() == 3) {
+        if (params_a_coeff_schedule_.size() == 3) {
+          discount_coeff_b = discount_coeff_a;
+        } else {
+          float half_life     = params_b_coeff_schedule_[0];
+          float initial_coeff = params_b_coeff_schedule_[1];
+          float final_coeff   = params_b_coeff_schedule_[2];
+          discount_coeff_b = initial_coeff + (final_coeff - initial_coeff) *
+                             (2.0 / (1.0 + exp(-1.0986 * global_step / half_life)) - 1.0);
+        }
+      }
+
       /*** BEGIN AUGMENTATION TO IMAGE A ***/
       auto input_a  = input_a_t.tensor<float, 4>();
       auto output_a = output_a_t->tensor<float, 4>();
@@ -244,13 +275,13 @@ class DataAugmentation : public OpKernel {
         AugmentationCoeff coeff;
 
         if (gen_spatial_transform) {
-          AugmentationLayerBase::generate_valid_spatial_coeffs(aug_a, coeff,
+          AugmentationLayerBase::generate_valid_spatial_coeffs(discount_coeff_a, aug_a, coeff,
                                                                src_width, src_height,
                                                                out_width, out_height);
         }
 
         if (gen_chromatic_transform) {
-          AugmentationLayerBase::generate_chromatic_coeffs(aug_a, coeff);
+          AugmentationLayerBase::generate_chromatic_coeffs(discount_coeff_a, aug_a, coeff);
         }
 
         coeffs_a.push_back(coeff);
@@ -317,13 +348,13 @@ class DataAugmentation : public OpKernel {
         // If we did a spatial transform on image A, we need to do the same one
         // (+ possibly more) on image B
         if (gen_spatial_transform_b) {
-          AugmentationLayerBase::generate_valid_spatial_coeffs(aug_b, coeff,
+          AugmentationLayerBase::generate_valid_spatial_coeffs(discount_coeff_b, aug_b, coeff,
                                                                src_width, src_height,
                                                                out_width, out_height);
         }
 
         if (gen_chromatic_transform_b) {
-          AugmentationLayerBase::generate_chromatic_coeffs(aug_b, coeff);
+          AugmentationLayerBase::generate_chromatic_coeffs(discount_coeff_b, aug_b, coeff);
         }
 
         coeffs_b.push_back(coeff);
@@ -398,6 +429,7 @@ class DataAugmentation : public OpKernel {
     std::vector<float>params_a_mean_;
     std::vector<float>params_a_spread_;
     std::vector<float>params_a_prob_;
+    std::vector<float>params_a_coeff_schedule_;
 
     // Params B
     std::vector<string>params_b_name_;
@@ -406,11 +438,13 @@ class DataAugmentation : public OpKernel {
     std::vector<float>params_b_mean_;
     std::vector<float>params_b_spread_;
     std::vector<float>params_b_prob_;
+    std::vector<float>params_b_coeff_schedule_;
 };
 
 
 REGISTER_KERNEL_BUILDER(Name("DataAugmentation")
                         .Device(DEVICE_CPU)
+                        .HostMemory("global_step")
                         .HostMemory("transforms_from_a")
                         .HostMemory("transforms_from_b"),
                         DataAugmentation<CPUDevice>)
@@ -419,6 +453,7 @@ REGISTER_KERNEL_BUILDER(Name("DataAugmentation")
 
 REGISTER_KERNEL_BUILDER(Name("DataAugmentation")
                         .Device(DEVICE_GPU)
+                        .HostMemory("global_step")
                         .HostMemory("transforms_from_a")
                         .HostMemory("transforms_from_b"),
                         DataAugmentation<GPUDevice>)

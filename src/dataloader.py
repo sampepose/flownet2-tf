@@ -124,6 +124,7 @@ def config_to_arrays(dataset_config):
         'mean': [],
         'spread': [],
         'prob': [],
+        'coeff_schedule': [],
     }
     config = copy.deepcopy(dataset_config)
 
@@ -132,12 +133,17 @@ def config_to_arrays(dataset_config):
 
     # Get all attributes
     for (name, value) in config.iteritems():
-        output['name'].append(name)
-        output['rand_type'].append(value['rand_type'])
-        output['exp'].append(value['exp'])
-        output['mean'].append(value['mean'])
-        output['spread'].append(value['spread'])
-        output['prob'].append(value['prob'])
+        if name == 'coeff_schedule_param':
+            output['coeff_schedule'] = [value['half_life'],
+                                        value['initial_coeff'],
+                                        value['final_coeff']]
+        else:
+            output['name'].append(name)
+            output['rand_type'].append(value['rand_type'])
+            output['exp'].append(value['exp'])
+            output['mean'].append(value['mean'])
+            output['spread'].append(value['spread'])
+            output['prob'].append(value['prob'])
 
     return output
 
@@ -251,6 +257,7 @@ def load_batch(dataset_config, split_name, global_step):
             image_as, image_bs, transforms_from_a, transforms_from_b = \
                 _preprocessing_ops.data_augmentation(image_as,
                                                      image_bs,
+                                                     global_step,
                                                      crop,
                                                      config_a['name'],
                                                      config_a['rand_type'],
@@ -258,12 +265,14 @@ def load_batch(dataset_config, split_name, global_step):
                                                      config_a['mean'],
                                                      config_a['spread'],
                                                      config_a['prob'],
+                                                     config_a['coeff_schedule'],
                                                      config_b['name'],
                                                      config_b['rand_type'],
                                                      config_b['exp'],
                                                      config_b['mean'],
                                                      config_b['spread'],
-                                                     config_b['prob'])
+                                                     config_b['prob'],
+                                                     config_b['coeff_schedule'])
 
             noise_coeff_a = None
             noise_coeff_b = None

@@ -197,10 +197,13 @@ void AugmentationCoeff::replace_with(const AugmentationCoeff& coeff) {
 
 /** AugmentationLayerBase Functions **/
 float AugmentationLayerBase::rng_generate(const AugmentationParam& param,
+                                          float                    discount_coeff,
                                           const float              default_value) {
   std::random_device rd;  // Will be used to obtain a seed for the random number
                           // engine
   std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
+
+  float spread = param.spread * discount_coeff;
 
   if (param.rand_type == "uniform_bernoulli") {
     float tmp1 = 0.0;
@@ -216,8 +219,8 @@ float AugmentationLayerBase::rng_generate(const AugmentationParam& param,
     }
 
     if (param.spread > 0.0) {
-      std::uniform_real_distribution<> uniform(param.mean - param.spread,
-                                               param.mean + param.spread);
+      std::uniform_real_distribution<> uniform(param.mean - spread,
+                                               param.mean + spread);
       tmp1 = uniform(gen);
     } else {
       tmp1 = param.mean;
@@ -241,8 +244,8 @@ float AugmentationLayerBase::rng_generate(const AugmentationParam& param,
       return default_value;
     }
 
-    if (param.spread > 0.0) {
-      std::normal_distribution<> normal(param.mean, param.spread);
+    if (spread > 0.0) {
+      std::normal_distribution<> normal(param.mean, spread);
       tmp1 = normal(gen);
     } else {
       tmp1 = param.mean;
@@ -258,51 +261,55 @@ float AugmentationLayerBase::rng_generate(const AugmentationParam& param,
   }
 }
 
-void AugmentationLayerBase::generate_chromatic_coeffs(const AugmentationParams& aug,
+void AugmentationLayerBase::generate_chromatic_coeffs(float                     discount_coeff,
+                                                      const AugmentationParams& aug,
                                                       AugmentationCoeff       & coeff) {
   if (aug.gamma) {
-    coeff.gamma = rng_generate(aug.gamma(), coeff.gamma.get_default());
+    coeff.gamma = rng_generate(aug.gamma(), discount_coeff, coeff.gamma.get_default());
   }
 
   if (aug.brightness) {
-    coeff.brightness = rng_generate(aug.brightness(), coeff.brightness.get_default());
+    coeff.brightness =
+      rng_generate(aug.brightness(), discount_coeff, coeff.brightness.get_default());
   }
 
   if (aug.contrast) {
-    coeff.contrast = rng_generate(aug.contrast(), coeff.contrast.get_default());
+    coeff.contrast = rng_generate(aug.contrast(), discount_coeff, coeff.contrast.get_default());
   }
 
   if (aug.color) {
-    coeff.color1 = rng_generate(aug.color(), coeff.color1.get_default());
-    coeff.color2 = rng_generate(aug.color(), coeff.color2.get_default());
-    coeff.color3 = rng_generate(aug.color(), coeff.color3.get_default());
+    coeff.color1 = rng_generate(aug.color(), discount_coeff, coeff.color1.get_default());
+    coeff.color2 = rng_generate(aug.color(), discount_coeff, coeff.color2.get_default());
+    coeff.color3 = rng_generate(aug.color(), discount_coeff, coeff.color3.get_default());
   }
 }
 
-void AugmentationLayerBase::generate_spatial_coeffs(const AugmentationParams& aug,
+void AugmentationLayerBase::generate_spatial_coeffs(float                     discount_coeff,
+                                                    const AugmentationParams& aug,
                                                     AugmentationCoeff       & coeff) {
   if (aug.translate) {
-    coeff.dx = rng_generate(aug.translate(), coeff.dx.get_default());
-    coeff.dy = rng_generate(aug.translate(), coeff.dy.get_default());
+    coeff.dx = rng_generate(aug.translate(), discount_coeff, coeff.dx.get_default());
+    coeff.dy = rng_generate(aug.translate(), discount_coeff, coeff.dy.get_default());
   }
 
   if (aug.rotate) {
-    coeff.angle = rng_generate(aug.rotate(), coeff.angle.get_default());
+    coeff.angle = rng_generate(aug.rotate(), discount_coeff, coeff.angle.get_default());
   }
 
   if (aug.zoom) {
-    coeff.zoom_x = rng_generate(aug.zoom(), coeff.zoom_x.get_default());
+    coeff.zoom_x = rng_generate(aug.zoom(), discount_coeff, coeff.zoom_x.get_default());
     coeff.zoom_y = coeff.zoom_x();
   }
 
   if (aug.squeeze) {
-    float squeeze_coeff = rng_generate(aug.squeeze(), 1.0);
+    float squeeze_coeff = rng_generate(aug.squeeze(), discount_coeff, 1.0);
     coeff.zoom_x = coeff.zoom_x() * squeeze_coeff;
     coeff.zoom_y = coeff.zoom_y() * squeeze_coeff;
   }
 }
 
 void AugmentationLayerBase::generate_valid_spatial_coeffs(
+  float                     discount_coeff,
   const AugmentationParams& aug,
   AugmentationCoeff       & coeff,
   int                       src_width,
@@ -317,7 +324,7 @@ void AugmentationLayerBase::generate_valid_spatial_coeffs(
 
   while (good_params < 4 && counter < 50) {
     coeff.clear();
-    AugmentationLayerBase::generate_spatial_coeffs(aug, coeff);
+    AugmentationLayerBase::generate_spatial_coeffs(discount_coeff, aug, coeff);
     coeff.combine_with(incoming_coeff);
 
     // Check if all 4 corners of the transformed image fit into the original

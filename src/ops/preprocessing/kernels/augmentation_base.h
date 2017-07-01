@@ -195,19 +195,23 @@ class AugmentationLayerBase {
     // TODO: Class ChromaticCoeffs
 
     static float rng_generate(const AugmentationParam& param,
+                              float                    discount_coeff,
                               const float              default_value);
 
-    static void  clear_spatial_coeffs(AugmentationCoeff& coeff);
-    static void  generate_chromatic_coeffs(const AugmentationParams& aug,
-                                           AugmentationCoeff       & coeff);
-    static void  generate_spatial_coeffs(const AugmentationParams& aug,
-                                         AugmentationCoeff       & coeff);
-    static void  generate_valid_spatial_coeffs(const AugmentationParams& aug,
-                                               AugmentationCoeff       & coeff,
-                                               int                       src_width,
-                                               int                       src_height,
-                                               int                       out_width,
-                                               int                       out_height);
+    static void clear_spatial_coeffs(AugmentationCoeff& coeff);
+    static void generate_chromatic_coeffs(float                     discount_coeff,
+                                          const AugmentationParams& aug,
+                                          AugmentationCoeff       & coeff);
+    static void generate_spatial_coeffs(float                     discount_coeff,
+                                        const AugmentationParams& aug,
+                                        AugmentationCoeff       & coeff);
+    static void generate_valid_spatial_coeffs(float                     discount_coeff,
+                                              const AugmentationParams& aug,
+                                              AugmentationCoeff       & coeff,
+                                              int                       src_width,
+                                              int                       src_height,
+                                              int                       out_width,
+                                              int                       out_height);
 
     static void copy_chromatic_coeffs_to_tensor(const std::vector<AugmentationCoeff>& coeff_arr,
                                                 typename TTypes<float, 2>::Tensor& out);
