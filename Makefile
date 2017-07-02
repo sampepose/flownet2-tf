@@ -28,6 +28,10 @@ GPU_SRC_DOWNSAMPLE  = src/ops/downsample/downsample_kernel_gpu.cu.cc
 GPU_PROD_DOWNSAMPLE = $(OUT_DIR)/downsample_kernel_gpu.o
 DOWNSAMPLE_PROD 	= $(OUT_DIR)/downsample.so
 
+CORRELATION_SRC = "src/ops/correlation/correlation_kernel.cc" "src/ops/correlation/correlation_op.cc"
+GPU_SRC_CORRELATION  = src/ops/correlation/correlation_kernel.cu.cc
+GPU_PROD_CORRELATION = $(OUT_DIR)/correlation_kernel_gpu.o
+CORRELATION_PROD 	= $(OUT_DIR)/correlation.so
 
 ifeq ($(OS),Windows_NT)
     detected_OS := Windows
@@ -41,7 +45,7 @@ ifeq ($(detected_OS),Linux)
 	CFLAGS += -D_MWAITXINTRIN_H_INCLUDED -D_FORCE_INLINES -D__STRICT_ANSI__ -D_GLIBCXX_USE_CXX11_ABI=0
 endif
 
-all: preprocessing downsample
+all: preprocessing downsample correlation
 
 preprocessing:
 	$(GPUCC) -g $(CFLAGS) $(GPUCFLAGS) $(GPU_SRC_DATA_AUG) $(GPULFLAGS) $(GPUDEF) -o $(GPU_PROD_DATA_AUG)
@@ -51,6 +55,10 @@ preprocessing:
 downsample:
 	$(GPUCC) -g $(CFLAGS) $(GPUCFLAGS) $(GPU_SRC_DOWNSAMPLE) $(GPULFLAGS) $(GPUDEF) -o $(GPU_PROD_DOWNSAMPLE)
 	$(CXX) -g $(CFLAGS)  $(DOWNSAMPLE_SRC) $(GPU_PROD_DOWNSAMPLE) $(LFLAGS) $(CGPUFLAGS) -o $(DOWNSAMPLE_PROD)
+
+correlation:
+	$(GPUCC) -g $(CFLAGS) $(GPUCFLAGS) $(GPU_SRC_CORRELATION) $(GPULFLAGS) $(GPUDEF) -o $(GPU_PROD_CORRELATION)
+	$(CXX) -g $(CFLAGS)  $(CORRELATION_SRC) $(GPU_PROD_CORRELATION) $(LFLAGS) $(CGPUFLAGS) -o $(CORRELATION_PROD)
 
 clean:
 	rm -f $(PREPROCESSING_PROD) $(GPU_PROD_FLOW) $(GPU_PROD_DATA_AUG) $(DOWNSAMPLE_PROD) $(GPU_PROD_DOWNSAMPLE)
