@@ -23,7 +23,7 @@ Status SetOutput(InferenceContext *c) {
   TF_RETURN_IF_ERROR(c->GetAttr("stride_1", &stride_1));
   TF_RETURN_IF_ERROR(c->GetAttr("stride_2", &stride_2));
 
-  // Get dimensions of input
+  // Get dimensions of input (already padded)
   int64 batch        = c->Value(c->Dim(input, 0));
   int64 input_height = c->Value(c->Dim(input, 1));
   int64 input_width  = c->Value(c->Dim(input, 2));
@@ -54,6 +54,29 @@ REGISTER_OP("Correlation")
 .Attr("max_displacement: int")
 .Attr("stride_1: int")
 .Attr("stride_2: int")
+// Note: We don't explicitly use pad for the forwards pass, but it is *needed*
+// for the backwards pass
+.Attr("pad: int")
 .Output("output: float32")
 .SetShapeFn(SetOutput);
+
+REGISTER_OP("CorrelationGrad")
+.Input("gradients: float32")
+.Input("input_a: float32")
+.Input("input_b: float32")
+.Attr("kernel_size: int")
+.Attr("max_displacement: int")
+.Attr("stride_1: int")
+.Attr("stride_2: int")
+.Attr("pad: int")
+.Output("backprops_a: float32")
+.Output("backprops_b: float32")
+.SetShapeFn([](InferenceContext *c) {
+    // Output gradients should be the same dimensions as the inputs
+    ShapeHandle out;
+    TF_RETURN_IF_ERROR(c->Merge(c->input(1), c->input(2), &out));
+    c->set_output(0, out);
+    c->set_output(1, out);
+    return Status::OK();
+  });
 } // namespace tensorflow

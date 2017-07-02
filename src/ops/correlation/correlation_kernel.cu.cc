@@ -137,7 +137,6 @@ void Correlation(const GPUDevice& device,
     max_displacement, neighborhood_grid_radius, neighborhood_grid_width, kernel_radius,
     kernel_size, stride_1, stride_2, in_width, in_height, in_channels,
     input_a, input_b, output);
-  printf("Launched Correlation Kernel\n");
 }
 } // end namespace tensorflow
 

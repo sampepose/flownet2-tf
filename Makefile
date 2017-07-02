@@ -10,7 +10,7 @@ CC        = gcc -O2 -pthread
 CXX       = g++
 GPUCC     = nvcc
 CFLAGS    = -std=c++11 -I$(TF_INC) -I"$(CUDA_HOME)/include" -DGOOGLE_CUDA=1
-GPUCFLAGS = -c
+GPUCFLAGS = -c -gencode=arch=compute_30,code=sm_30
 LFLAGS    = -pthread -shared -fPIC
 GPULFLAGS = -x cu -Xcompiler -fPIC
 CGPUFLAGS = -L$(CUDA_HOME)/lib -L$(CUDA_HOME)/lib64 -lcudart
@@ -28,9 +28,11 @@ GPU_SRC_DOWNSAMPLE  = src/ops/downsample/downsample_kernel_gpu.cu.cc
 GPU_PROD_DOWNSAMPLE = $(OUT_DIR)/downsample_kernel_gpu.o
 DOWNSAMPLE_PROD 	= $(OUT_DIR)/downsample.so
 
-CORRELATION_SRC = "src/ops/correlation/correlation_kernel.cc" "src/ops/correlation/correlation_op.cc"
+CORRELATION_SRC = "src/ops/correlation/correlation_kernel.cc" "src/ops/correlation/correlation_grad_kernel.cc" "src/ops/correlation/correlation_op.cc"
 GPU_SRC_CORRELATION  = src/ops/correlation/correlation_kernel.cu.cc
+GPU_SRC_CORRELATION_GRAD  = src/ops/correlation/correlation_grad_kernel.cu.cc
 GPU_PROD_CORRELATION = $(OUT_DIR)/correlation_kernel_gpu.o
+GPU_PROD_CORRELATION_GRAD = $(OUT_DIR)/correlation_grad_kernel_gpu.o
 CORRELATION_PROD 	= $(OUT_DIR)/correlation.so
 
 ifeq ($(OS),Windows_NT)
@@ -58,7 +60,8 @@ downsample:
 
 correlation:
 	$(GPUCC) -g $(CFLAGS) $(GPUCFLAGS) $(GPU_SRC_CORRELATION) $(GPULFLAGS) $(GPUDEF) -o $(GPU_PROD_CORRELATION)
-	$(CXX) -g $(CFLAGS)  $(CORRELATION_SRC) $(GPU_PROD_CORRELATION) $(LFLAGS) $(CGPUFLAGS) -o $(CORRELATION_PROD)
+	$(GPUCC) -g $(CFLAGS) $(GPUCFLAGS) $(GPU_SRC_CORRELATION_GRAD) $(GPULFLAGS) $(GPUDEF) -o $(GPU_PROD_CORRELATION_GRAD)
+	$(CXX) -g $(CFLAGS)  $(CORRELATION_SRC) $(GPU_PROD_CORRELATION) $(GPU_PROD_CORRELATION_GRAD) $(LFLAGS) $(CGPUFLAGS) -o $(CORRELATION_PROD)
 
 clean:
 	rm -f $(PREPROCESSING_PROD) $(GPU_PROD_FLOW) $(GPU_PROD_DATA_AUG) $(DOWNSAMPLE_PROD) $(GPU_PROD_DOWNSAMPLE)

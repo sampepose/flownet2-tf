@@ -1,14 +1,13 @@
 #define EIGEN_USE_THREADS
 
+#include <utility>
+
 #include "correlation_kernel.h"
+
+#include "tensorflow/core/framework/op.h"
 #include "tensorflow/core/framework/op_kernel.h"
-#include "tensorflow/core/framework/register_types.h"
-#include "tensorflow/core/framework/types.h"
-#include "tensorflow/core/platform/types.h"
 
 namespace tensorflow {
-typedef Eigen::GpuDevice GPUDevice;
-
 template<typename Device>
 class CorrelationKernel : public OpKernel {
   public:
@@ -30,27 +29,28 @@ class CorrelationKernel : public OpKernel {
       OP_REQUIRES(ctx, input_a_t.dims() == 4, errors::InvalidArgument("input_a must have rank 4"));
       OP_REQUIRES(ctx, input_b_t.dims() == 4, errors::InvalidArgument("input_b must have rank 4"));
 
-      // Get dimensions of input
-      int64 batch_size   = input_a_t.dim_size(0);
-      int64 input_height = input_a_t.dim_size(1);
-      int64 input_width  = input_a_t.dim_size(2);
+      // Get dimensions of input (already padded)
+      int batch_size     = input_a_t.dim_size(0);
+      int input_height   = input_a_t.dim_size(1);
+      int input_width    = input_a_t.dim_size(2);
+      int input_channels = input_a_t.dim_size(3);
 
       // The size of unreachable border region on each side
       int kernel_radius = (kernel_size - 1) / 2;
       int border_size   = max_displacement + kernel_radius;
 
       // Calculate the output dimensions
-      int64 output_height = (int64)ceil((float)(input_height - border_size * 2) / (float)stride_1);
-      int64 output_width  = (int64)ceil((float)(input_width - border_size * 2) / (float)stride_1);
+      int output_height = ceil((float)(input_height - border_size * 2) / (float)stride_1);
+      int output_width  = ceil((float)(input_width - border_size * 2) / (float)stride_1);
 
       OP_REQUIRES(ctx, output_height >= 1,
                   errors::InvalidArgument("Neighborhood and kernel don't fit in input height."));
       OP_REQUIRES(ctx, output_width >= 1,
                   errors::InvalidArgument("Neighborhood and kernel don't fit in input width."));
 
-      int   neighborhood_grid_radius = max_displacement / stride_2;
-      int   neighborhood_grid_width  = neighborhood_grid_radius * 2 + 1;
-      int64 output_channels          = neighborhood_grid_width * neighborhood_grid_width;
+      int neighborhood_grid_radius = max_displacement / stride_2;
+      int neighborhood_grid_width  = neighborhood_grid_radius * 2 + 1;
+      int output_channels          = neighborhood_grid_width * neighborhood_grid_width;
 
       // Allocate the memory for the output
       Tensor *output_t;
@@ -59,14 +59,23 @@ class CorrelationKernel : public OpKernel {
                        TensorShape({ batch_size, output_height, output_width, output_channels }),
                        &output_t));
 
-      // Perform cross correlation
+      // Get the tensors
       auto input_a = input_a_t.tensor<float, 4>();
       auto input_b = input_b_t.tensor<float, 4>();
       auto output  = output_t->tensor<float, 4>();
 
-      Correlation(ctx->eigen_gpu_device(),
-                  input_a,
-                  input_b,
+      // Perform cross correlation
+      Correlation(ctx->eigen_device<Device>(),
+                  input_a.data(),
+                  input_b.data(),
+                  batch_size,
+                  output_height,
+                  output_width,
+                  output_channels,
+                  batch_size * output_height * output_width * output_channels,
+                  input_height,
+                  input_width,
+                  input_channels,
                   max_displacement,
                   neighborhood_grid_radius,
                   neighborhood_grid_width,
@@ -74,7 +83,7 @@ class CorrelationKernel : public OpKernel {
                   kernel_size,
                   stride_1,
                   stride_2,
-                  output);
+                  output.data());
     }
 
   private:
