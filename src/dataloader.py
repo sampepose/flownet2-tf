@@ -240,17 +240,12 @@ def load_batch(dataset_config, split_name, global_step):
             image_a = image_a / 255.0
             image_b = image_b / 255.0
 
-        image_as, image_bs, flows = tf.train.batch(
-            [image_a, image_b, flow],
-            batch_size=dataset_config['BATCH_SIZE'],
-            capacity=dataset_config['BATCH_SIZE'] * 4,
-            num_threads=num_threads,
-            allow_smaller_final_batch=False)
-
         crop = [dataset_config['PREPROCESS']['crop_height'],
                 dataset_config['PREPROCESS']['crop_width']]
         config_a = config_to_arrays(dataset_config['PREPROCESS']['image_a'])
         config_b = config_to_arrays(dataset_config['PREPROCESS']['image_b'])
+
+        image_as, image_bs, flows = map(lambda x: tf.expand_dims(x, 0), [image_a, image_b, flow])
 
         # Perform data augmentation on GPU
         with tf.device('/cpu:0'):
@@ -307,4 +302,9 @@ def load_batch(dataset_config, split_name, global_step):
             flows = _preprocessing_ops.flow_augmentation(
                 flows, transforms_from_a, transforms_from_b, crop)
 
-            return image_as, image_bs, flows
+            return tf.train.batch([image_as, image_bs, flows],
+                                  enqueue_many=True,
+                                  batch_size=dataset_config['BATCH_SIZE'],
+                                  capacity=dataset_config['BATCH_SIZE'] * 4,
+                                  num_threads=num_threads,
+                                  allow_smaller_final_batch=False)
