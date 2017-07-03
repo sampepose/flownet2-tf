@@ -1,8 +1,12 @@
 import abc
 from enum import Enum
+import os
 import tensorflow as tf
-from .flowlib import flow_to_image
+from .flowlib import flow_to_image, write_flow
 import numpy as np
+from scipy.misc import imread, imsave
+import uuid
+from .training_schedules import LONG_SCHEDULE
 slim = tf.contrib.slim
 
 
@@ -33,6 +37,45 @@ class Net(object):
         Returns a single Tensor representing the total loss of the model.
         """
         return
+
+    def test(self, log_dir, input_a_path, input_b_path, out_path, save_image=True, save_flo=False):
+        input_a = imread(input_a_path)
+        input_b = imread(input_b_path)
+
+        # Convert from RGB -> BGR
+        input_a = input_a[..., [2, 1, 0]]
+        input_b = input_b[..., [2, 1, 0]]
+
+        # Scale from [0, 255] -> [0.0, 1.0] if needed
+        if input_a.max() > 1.0:
+            input_a = input_a / 255.0
+        if input_b.max() > 1.0:
+            input_b = input_b / 255.0
+
+        # TODO: This is a hack, we should get rid of this
+        training_schedule = LONG_SCHEDULE
+
+        # TODO: Somehow load existing weights from `log_dir`
+
+        inputs = {
+            'input_a': tf.expand_dims(tf.constant(input_a, dtype=tf.float32), 0),
+            'input_b': tf.expand_dims(tf.constant(input_b, dtype=tf.float32), 0),
+        }
+        predictions = self.model(inputs, training_schedule)
+
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            pred_flow = sess.run(predictions['flow'])[0, :, :, :]
+
+            unique_name = 'flow-' + str(uuid.uuid4())
+            if save_image:
+                flow_img = flow_to_image(pred_flow)
+                full_out_path = os.path.join(out_path, unique_name + '.png')
+                imsave(full_out_path, flow_img)
+
+            if save_flo:
+                full_out_path = os.path.join(out_path, unique_name + '.flo')
+                write_flow(pred_flow, full_out_path)
 
     def train(self, log_dir, training_schedule, input_a, input_b, flow):
         tf.summary.image("image_a", input_a, max_outputs=2)
