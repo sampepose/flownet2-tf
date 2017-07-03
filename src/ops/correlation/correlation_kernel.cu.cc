@@ -30,8 +30,8 @@ __global__ void CorrelateData(int          batch_size,
                               int          kernel_size,
                               int          stride_1,
                               int          stride_2,
-                              int          in_width,
-                              int          in_height,
+                              int          in_width_padded,
+                              int          in_height_padded,
                               int          in_channels,
                               const float *input_a,
                               const float *input_b,
@@ -56,7 +56,8 @@ __global__ void CorrelateData(int          batch_size,
 
       // CHANNELS
       for (int ch = ch_off; ch < in_channels; ch += (WARPS_PER_BLOCK * THREADS_PER_WARP)) {
-        int idx1         = ((item * in_height + y1 + j) * in_width + x1 + i) * in_channels + ch;
+        int idx1 = ((item * in_height_padded + y1 + j) * in_width_padded + x1 + i) *
+                   in_channels + ch;
         int idxPatchData = ji_off + ch;
         patch_data[idxPatchData] = input_a[idx1];
       }
@@ -86,7 +87,8 @@ __global__ void CorrelateData(int          batch_size,
           int y2 = y1 + s2p;
 
           int idxPatchData = ji_off + ch;
-          int idx2         = ((item * in_height + y2 + j) * in_width + x2 + i) * in_channels + ch;
+          int idx2         = ((item * in_height_padded + y2 + j) * in_width_padded + x2 + i) *
+                             in_channels + ch;
 
           sum[ch_off] += patch_data[idxPatchData] * input_b[idx2];
         }
@@ -116,8 +118,8 @@ void Correlation(const GPUDevice& device,
                  const int        out_width,
                  const int        out_channels,
                  const int        out_count,
-                 const int        in_height,
-                 const int        in_width,
+                 const int        in_height_padded,
+                 const int        in_width_padded,
                  const int        in_channels,
                  int              max_displacement,
                  int              neighborhood_grid_radius,
@@ -135,7 +137,7 @@ void Correlation(const GPUDevice& device,
     device.stream() >> > (
     batch_size, out_width, out_height, out_channels, out_count,
     max_displacement, neighborhood_grid_radius, neighborhood_grid_width, kernel_radius,
-    kernel_size, stride_1, stride_2, in_width, in_height, in_channels,
+    kernel_size, stride_1, stride_2, in_width_padded, in_height_padded, in_channels,
     input_a, input_b, output);
 }
 } // end namespace tensorflow

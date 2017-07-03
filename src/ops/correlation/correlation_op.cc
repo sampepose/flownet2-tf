@@ -17,24 +17,27 @@ Status SetOutput(InferenceContext *c) {
   TF_RETURN_IF_ERROR(c->Merge(input_a, input_b, &input));
 
   // Get the attributes
-  int kernel_size, max_displacement, stride_1, stride_2;
+  int kernel_size, max_displacement, stride_1, stride_2, pad;
   TF_RETURN_IF_ERROR(c->GetAttr("kernel_size", &kernel_size));
   TF_RETURN_IF_ERROR(c->GetAttr("max_displacement", &max_displacement));
   TF_RETURN_IF_ERROR(c->GetAttr("stride_1", &stride_1));
   TF_RETURN_IF_ERROR(c->GetAttr("stride_2", &stride_2));
+  TF_RETURN_IF_ERROR(c->GetAttr("pad", &pad));
 
   // Get dimensions of input (already padded)
-  int64 batch        = c->Value(c->Dim(input, 0));
-  int64 input_height = c->Value(c->Dim(input, 1));
-  int64 input_width  = c->Value(c->Dim(input, 2));
+  int64 batch         = c->Value(c->Dim(input, 0));
+  int64 input_height  = c->Value(c->Dim(input, 1));
+  int64 input_width   = c->Value(c->Dim(input, 2));
+  int64 padded_height = input_height + 2 * pad;
+  int64 padded_width  = input_width + 2 * pad;
 
   // The size of unreachable border region on each side
   int kernel_radius = (kernel_size - 1) / 2;
   int border_size   = max_displacement + kernel_radius;
 
   // Calculate the output dimensions
-  int64 output_height = (int64)ceil((float)(input_height - border_size * 2) / (float)stride_1);
-  int64 output_width  = (int64)ceil((float)(input_width - border_size * 2) / (float)stride_1);
+  int64 output_height = (int64)ceil((float)(padded_height - border_size * 2) / (float)stride_1);
+  int64 output_width  = (int64)ceil((float)(padded_width - border_size * 2) / (float)stride_1);
 
   // TODO: Verify output size >= 1
 
@@ -54,8 +57,6 @@ REGISTER_OP("Correlation")
 .Attr("max_displacement: int")
 .Attr("stride_1: int")
 .Attr("stride_2: int")
-// Note: We don't explicitly use pad for the forwards pass, but it is *needed*
-// for the backwards pass
 .Attr("pad: int")
 .Output("output: float32")
 .SetShapeFn(SetOutput);

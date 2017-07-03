@@ -5,11 +5,8 @@ _correlation_ops = tf.load_op_library(
 
 
 def correlation(input_a, input_b, kernel_size, max_displacement, stride_1, stride_2, padding):
-    padded_input_a = tf.pad(input_a, [[0, 0], [padding, padding], [padding, padding], [0, 0]])
-    padded_input_b = tf.pad(input_b, [[0, 0], [padding, padding], [padding, padding], [0, 0]])
-
-    return _correlation_ops.correlation(padded_input_a,
-                                        padded_input_b,
+    return _correlation_ops.correlation(input_a,
+                                        input_b,
                                         kernel_size,
                                         max_displacement,
                                         stride_1,
