@@ -12,7 +12,7 @@ def main():
 
     # Train on the data
     net.test(
-        log_dir='./logs/flownet_s',
+        checkpoint='TODO',
         input_a_path=FLAGS.input_a,
         input_b_path=FLAGS.input_b,
         out_path=FLAGS.out,

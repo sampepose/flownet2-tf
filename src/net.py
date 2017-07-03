@@ -38,7 +38,7 @@ class Net(object):
         """
         return
 
-    def test(self, log_dir, input_a_path, input_b_path, out_path, save_image=True, save_flo=False):
+    def test(self, checkpoint, input_a_path, input_b_path, out_path, save_image=True, save_flo=False):
         input_a = imread(input_a_path)
         input_b = imread(input_b_path)
 
@@ -55,16 +55,16 @@ class Net(object):
         # TODO: This is a hack, we should get rid of this
         training_schedule = LONG_SCHEDULE
 
-        # TODO: Somehow load existing weights from `log_dir`
-
         inputs = {
             'input_a': tf.expand_dims(tf.constant(input_a, dtype=tf.float32), 0),
             'input_b': tf.expand_dims(tf.constant(input_b, dtype=tf.float32), 0),
         }
         predictions = self.model(inputs, training_schedule)
 
+        saver = tf.train.Saver()
+
         with tf.Session() as sess:
-            sess.run(tf.global_variables_initializer())
+            saver.restore(sess, checkpoint)
             pred_flow = sess.run(predictions['flow'])[0, :, :, :]
 
             unique_name = 'flow-' + str(uuid.uuid4())
