@@ -41,7 +41,7 @@ class FlowNetC(Net):
 
                 # Combine cross correlation results with convolution of feature map A
                 netA_conv = slim.conv2d(conv_a_3, 32, 1, scope='conv_redir')
-                net = tf.concat([cc_relu, netA_conv], axis=3)  # Concatenate along the channels axis
+                net = tf.concat([netA_conv, cc_relu], axis=3)  # Concatenate along the channels axis
 
                 conv3_1 = slim.conv2d(pad(net), 256, 3, scope='conv3_1')
                 with slim.arg_scope([slim.conv2d], num_outputs=512, kernel_size=3):
@@ -49,8 +49,8 @@ class FlowNetC(Net):
                     conv4_1 = slim.conv2d(pad(conv4), scope='conv4_1')
                     conv5 = slim.conv2d(pad(conv4_1), stride=2, scope='conv5')
                     conv5_1 = slim.conv2d(pad(conv5), scope='conv5_1')
-                net = slim.conv2d(pad(conv5_1), 1024, 3, stride=2, scope='conv6')
-                conv6_1 = slim.conv2d(pad(net), 1024, 3, scope='conv6_1')
+                conv6 = slim.conv2d(pad(conv5_1), 1024, 3, stride=2, scope='conv6')
+                conv6_1 = slim.conv2d(pad(conv6), 1024, 3, scope='conv6_1')
 
                 """ START: Refinement Network """
                 with slim.arg_scope([slim.conv2d_transpose], biases_initializer=None):
