@@ -35,13 +35,13 @@ class CorrelationGradKernel : public OpKernel {
       OP_REQUIRES(ctx, input_b_t.dims() == 4, errors::InvalidArgument("input_b must have rank 4"));
 
       // Get dimensions of input
-      const int batch_size      = input_a_t.dim_size(0);
-      const int in_height       = input_a_t.dim_size(1);
-      const int in_width        = input_a_t.dim_size(2);
-      const int in_channels     = input_a_t.dim_size(3);
-      const int padded_height   = in_height + 2 * pad;
-      const int padded_width    = in_width + 2 * pad;
-      const int in_count_padded = batch_size * padded_height * padded_width * in_channels;
+      const int batch_size          = input_a_t.dim_size(0);
+      const int in_height           = input_a_t.dim_size(1);
+      const int in_width            = input_a_t.dim_size(2);
+      const int in_channels         = input_a_t.dim_size(3);
+      const int in_count_per_sample = in_height * in_width * in_channels;
+      const int padded_height       = in_height + 2 * pad;
+      const int padded_width        = in_width + 2 * pad;
 
       // The size of unreachable border region on each side
       const int kernel_radius = (kernel_size - 1) / 2;
@@ -117,7 +117,7 @@ class CorrelationGradKernel : public OpKernel {
                        padded_width,
                        padded_height,
                        in_channels,
-                       in_count_padded,
+                       in_count_per_sample,
                        pad,
                        padded_input_b.data(),
                        gradients.data(),
@@ -139,7 +139,7 @@ class CorrelationGradKernel : public OpKernel {
                        padded_width,
                        padded_height,
                        in_channels,
-                       in_count_padded,
+                       in_count_per_sample,
                        pad,
                        padded_input_a.data(),
                        gradients.data(),

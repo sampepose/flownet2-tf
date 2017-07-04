@@ -74,6 +74,8 @@ __global__ void CorrelateData(int          batch_size,
 
     int s2o = (out_channel % neighborhood_grid_width - neighborhood_grid_radius) * stride_2;
     int s2p = (out_channel / neighborhood_grid_width - neighborhood_grid_radius) * stride_2;
+    int x2  = x1 + s2o;
+    int y2  = y1 + s2p;
 
     // HEIGHT
     for (int j = 0; j < kernel_size; j++) {
@@ -83,9 +85,6 @@ __global__ void CorrelateData(int          batch_size,
 
         // CHANNELS
         for (int ch = ch_off; ch < in_channels; ch += (WARPS_PER_BLOCK * THREADS_PER_WARP)) {
-          int x2 = x1 + s2o;
-          int y2 = y1 + s2p;
-
           int idxPatchData = ji_off + ch;
           int idx2         = ((item * in_height_padded + y2 + j) * in_width_padded + x2 + i) *
                              in_channels + ch;
@@ -104,8 +103,17 @@ __global__ void CorrelateData(int          batch_size,
         total_sum += sum[idx];
       }
       const int sumelems = kernel_size * kernel_size * in_channels;
-      const int index    = ((out_channel * out_height + blockIdx.y) * out_width) + blockIdx.x;
+      const int index    = (blockIdx.y * out_width + blockIdx.x) * out_channels + out_channel;
+
+      /* from Caffe:   const int index    = ((out_channel * out_height +
+         blockIdx.y) * out_width) + blockIdx.x; */
       output[index + item * out_count] = total_sum / (float)sumelems;
+
+      // Caffe, NKHW: ((n * K + k) * H + h) * W + w at point (n, k, h, w)
+      // TF, NHWK: ((n * H + h) * W + w) * K + k at point (n, h, w, k)
+      // n = 0
+      // caffe: ((k * H + h) * W + w)  +   n * K * H * W
+      // tf: (h * W + w) * K + k       +   n * H * W * K
     }
   }
 }

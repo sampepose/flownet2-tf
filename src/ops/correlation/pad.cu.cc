@@ -56,6 +56,8 @@ void Pad(const GPUDevice& device,
   int  threads_per_block = 16;
   dim3 totalBlocks((in_widthheight - 1) / threads_per_block + 1, input_channels, batch_size);
 
+  cudaMemset(output, 0, batch_size * output_height * output_width * input_channels * sizeof(float));
+
   int padding = (output_height - input_height) / 2;
 
   // LAUNCH KERNEL

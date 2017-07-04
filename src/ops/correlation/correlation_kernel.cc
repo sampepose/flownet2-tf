@@ -109,7 +109,7 @@ class CorrelationKernel : public OpKernel {
                   output_height,
                   output_width,
                   output_channels,
-                  batch_size * output_height * output_width * output_channels,
+                  output_height * output_width * output_channels,
                   padded_height,
                   padded_width,
                   input_channels,
