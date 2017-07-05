@@ -149,7 +149,7 @@ def config_to_arrays(dataset_config):
 
 
 # https://github.com/tgebru/transform/blob/master/src/caffe/layers/data_augmentation_layer.cpp#L34
-def _generate_coeff(param, discount_coeff=tf.constant(1.0), default_value=None):
+def _generate_coeff(param, discount_coeff=tf.constant(1.0), default_value=tf.constant(0.0)):
     if not all(name in param for name in ['rand_type', 'exp', 'mean', 'spread', 'prob']):
         raise RuntimeError('Expected rand_type, exp, mean, spread, prob in `param`')
 
@@ -274,7 +274,17 @@ def load_batch(dataset_config, split_name, global_step):
 
             # Generate and apply noise coeff for A if defined in A params
             if 'noise' in dataset_config['PREPROCESS']['image_a']:
-                noise_coeff_a = _generate_coeff(dataset_config['PREPROCESS']['image_a']['noise'])
+                discount_coeff = tf.constant(1.0)
+                if 'coeff_schedule_param' in dataset_config['PREPROCESS']['image_a']:
+                    initial_coeff = dataset_config['PREPROCESS']['image_a']['coeff_schedule_param']['initial_coeff']
+                    final_coeff = dataset_config['PREPROCESS']['image_a']['coeff_schedule_param']['final_coeff']
+                    half_life = dataset_config['PREPROCESS']['image_a']['coeff_schedule_param']['half_life']
+                    discount_coeff = initial_coeff + \
+                        (final_coeff - initial_coeff) * \
+                        (2.0 / (1.0 + exp(-1.0986 * global_step / half_life)) - 1.0)
+
+                noise_coeff_a = _generate_coeff(
+                    dataset_config['PREPROCESS']['image_a']['noise'], discount_coeff)
                 noise_a = tf.random_normal(shape=tf.shape(image_as),
                                            mean=0.0, stddev=noise_coeff_a,
                                            dtype=tf.float32)
@@ -282,7 +292,16 @@ def load_batch(dataset_config, split_name, global_step):
 
             # Generate noise coeff for B if defined in B params
             if 'noise' in dataset_config['PREPROCESS']['image_b']:
-                noise_coeff_b = _generate_coeff(dataset_config['PREPROCESS']['image_b']['noise'])
+                discount_coeff = tf.constant(1.0)
+                if 'coeff_schedule_param' in dataset_config['PREPROCESS']['image_b']:
+                    initial_coeff = dataset_config['PREPROCESS']['image_b']['coeff_schedule_param']['initial_coeff']
+                    final_coeff = dataset_config['PREPROCESS']['image_b']['coeff_schedule_param']['final_coeff']
+                    half_life = dataset_config['PREPROCESS']['image_b']['coeff_schedule_param']['half_life']
+                    discount_coeff = initial_coeff + \
+                        (final_coeff - initial_coeff) * \
+                        (2.0 / (1.0 + exp(-1.0986 * global_step / half_life)) - 1.0)
+                noise_coeff_b = _generate_coeff(
+                    dataset_config['PREPROCESS']['image_b']['noise'], discount_coeff)
 
             # Combine coeff from a with coeff from b
             if noise_coeff_a is not None:
