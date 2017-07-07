@@ -77,7 +77,7 @@ class Net(object):
                 full_out_path = os.path.join(out_path, unique_name + '.flo')
                 write_flow(pred_flow, full_out_path)
 
-    def train(self, log_dir, training_schedule, input_a, input_b, flow):
+    def train(self, log_dir, training_schedule, input_a, input_b, flow, checkpoints=None):
         tf.summary.image("image_a", input_a, max_outputs=2)
         tf.summary.image("image_b", input_b, max_outputs=2)
 
@@ -98,6 +98,13 @@ class Net(object):
         predictions = self.model(inputs, training_schedule)
         total_loss = self.loss(flow, predictions)
         tf.summary.scalar('loss', total_loss)
+
+        if checkpoints:
+            for (checkpoint_path, variable_name_scope) in checkpoints.iteritems():
+                variables_to_restore = slim.get_variables(scope=variable_name_scope)
+                restorer = tf.train.Saver(variables_to_restore)
+                with tf.Session() as sess:
+                    restorer.restore(sess, checkpoint_path)
 
         # Show the generated flow in TensorBoard
         if 'flow' in predictions:
