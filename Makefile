@@ -37,6 +37,11 @@ GPU_PROD_CORRELATION_GRAD = $(OUT_DIR)/correlation_grad_kernel_gpu.o
 GPU_PROD_PAD = $(OUT_DIR)/correlation_pad_gpu.o
 CORRELATION_PROD 	= $(OUT_DIR)/correlation.so
 
+FLOWWARP_SRC = "src/ops/flow_warp/flow_warp_op.cc" "src/ops/flow_warp/flow_warp.cc"
+GPU_SRC_FLOWWARP = "src/ops/flow_warp/flow_warp.cu.cc"
+GPU_PROD_FLOWWARP = "$(OUT_DIR)/flow_warp_gpu.o"
+FLOWWARP_PROD = "$(OUT_DIR)/flow_warp.so"
+
 ifeq ($(OS),Windows_NT)
     detected_OS := Windows
 else
@@ -49,7 +54,7 @@ ifeq ($(detected_OS),Linux)
 	CFLAGS += -D_MWAITXINTRIN_H_INCLUDED -D_FORCE_INLINES -D__STRICT_ANSI__ -D_GLIBCXX_USE_CXX11_ABI=0
 endif
 
-all: preprocessing downsample correlation
+all: preprocessing downsample correlation flowwarp
 
 preprocessing:
 	$(GPUCC) -g $(CFLAGS) $(GPUCFLAGS) $(GPU_SRC_DATA_AUG) $(GPULFLAGS) $(GPUDEF) -o $(GPU_PROD_DATA_AUG)
@@ -65,6 +70,10 @@ correlation:
 	$(GPUCC) -g $(CFLAGS) $(GPUCFLAGS) $(GPU_SRC_CORRELATION_GRAD) $(GPULFLAGS) $(GPUDEF) -o $(GPU_PROD_CORRELATION_GRAD)
 	$(GPUCC) -g $(CFLAGS) $(GPUCFLAGS) $(GPU_SRC_PAD) $(GPULFLAGS) $(GPUDEF) -o $(GPU_PROD_PAD)
 	$(CXX) -g $(CFLAGS)  $(CORRELATION_SRC) $(GPU_PROD_CORRELATION) $(GPU_PROD_CORRELATION_GRAD) $(GPU_PROD_PAD) $(LFLAGS) $(CGPUFLAGS) -o $(CORRELATION_PROD)
+
+flowwarp:
+	$(GPUCC) -g $(CFLAGS) $(GPUCFLAGS) $(GPU_SRC_FLOWWARP) $(GPULFLAGS) $(GPUDEF) -o $(GPU_PROD_FLOWWARP)
+	$(CXX) -g $(CFLAGS)  $(FLOWWARP_SRC) $(GPU_PROD_FLOWWARP) $(LFLAGS) $(CGPUFLAGS) -o $(FLOWWARP_PROD)
 
 clean:
 	rm -f $(PREPROCESSING_PROD) $(GPU_PROD_FLOW) $(GPU_PROD_DATA_AUG) $(DOWNSAMPLE_PROD) $(GPU_PROD_DOWNSAMPLE)
