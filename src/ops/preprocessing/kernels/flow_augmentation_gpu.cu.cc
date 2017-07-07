@@ -15,6 +15,10 @@
 namespace tensorflow {
 typedef Eigen::GpuDevice GPUDevice;
 
+inline __device__ __host__ int clamp(int f, int a, int b) {
+  return max(a, min(f, b));
+}
+
 __global__ void FillFlowAugmentationKernel(
   const int32 nthreads,
   const float *flow_ptr,
@@ -45,8 +49,8 @@ __global__ void FillFlowAugmentationKernel(
       2 + 0;
     const int srcYIdx = srcXIdx + 1;
 
-    const float xpos2 = xpos1 + flow_ptr[min(srcXIdx, src_total_count)];
-    const float ypos2 = ypos1 + flow_ptr[min(srcYIdx, src_total_count)];
+    const float xpos2 = xpos1 + flow_ptr[clamp(srcXIdx, 0, src_total_count - 1)];
+    const float ypos2 = ypos1 + flow_ptr[clamp(srcYIdx, 0, src_total_count - 1)];
 
     // Apply inverse of the transformation matrix applied to first image
     const float xpos3 = xpos2 * inv_transforms_from_b[transformIdx + 0]
@@ -63,7 +67,8 @@ __global__ void FillFlowAugmentationKernel(
   }
 }
 
-bool FillFlowAugmentation(const GPUDevice& device,
+template<>
+void FillFlowAugmentation(const GPUDevice& device,
                           typename TTypes<float, 4>::Tensor output,
                           typename TTypes<float, 4>::ConstTensor flows,
                           typename TTypes<const float, 2>::ConstTensor transforms_from_a,
@@ -84,7 +89,6 @@ bool FillFlowAugmentation(const GPUDevice& device,
     transforms_from_b.data(),
     src_total_count, flows.dimension(1), flows.dimension(2), batch_size,
     out_height, out_width, output.data());
-  return device.ok();
 }
 } // end namespace tensorflow
 

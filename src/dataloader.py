@@ -124,6 +124,7 @@ def config_to_arrays(dataset_config):
         'mean': [],
         'spread': [],
         'prob': [],
+        'coeff_schedule': [],
     }
     config = copy.deepcopy(dataset_config)
 
@@ -132,14 +133,91 @@ def config_to_arrays(dataset_config):
 
     # Get all attributes
     for (name, value) in config.iteritems():
-        output['name'].append(name)
-        output['rand_type'].append(value['rand_type'])
-        output['exp'].append(value['exp'])
-        output['mean'].append(value['mean'])
-        output['spread'].append(value['spread'])
-        output['prob'].append(value['prob'])
+        if name == 'coeff_schedule_param':
+            output['coeff_schedule'] = [value['half_life'],
+                                        value['initial_coeff'],
+                                        value['final_coeff']]
+        else:
+            output['name'].append(name)
+            output['rand_type'].append(value['rand_type'])
+            output['exp'].append(value['exp'])
+            output['mean'].append(value['mean'])
+            output['spread'].append(value['spread'])
+            output['prob'].append(value['prob'])
 
     return output
+
+
+# https://github.com/tgebru/transform/blob/master/src/caffe/layers/data_augmentation_layer.cpp#L34
+def _generate_coeff(param, discount_coeff=tf.constant(1.0), default_value=tf.constant(0.0)):
+    if not all(name in param for name in ['rand_type', 'exp', 'mean', 'spread', 'prob']):
+        raise RuntimeError('Expected rand_type, exp, mean, spread, prob in `param`')
+
+    rand_type = param['rand_type']
+    exp = float(param['exp'])
+    mean = tf.convert_to_tensor(param['mean'], dtype=tf.float32)
+    spread = float(param['spread'])  # AKA standard deviation
+    prob = float(param['prob'])
+
+    # Multiply spread by our discount_coeff so it changes over time
+    spread = spread * discount_coeff
+
+    if rand_type == 'uniform':
+        value = tf.cond(spread > 0.0,
+                        lambda: tf.random_uniform([], mean - spread, mean + spread),
+                        lambda: mean)
+        if exp:
+            value = tf.exp(value)
+    elif rand_type == 'gaussian':
+        value = tf.cond(spread > 0.0,
+                        lambda: tf.random_normal([], mean, spread),
+                        lambda: mean)
+        if exp:
+            value = tf.exp(value)
+    elif rand_type == 'bernoulli':
+        if prob > 0.0:
+            value = tf.contrib.distributions.Bernoulli(probs=prob).sample([])
+        else:
+            value = 0.0
+    elif rand_type == 'uniform_bernoulli':
+        tmp1 = 0.0
+        tmp2 = 0
+        if prob > 0.0:
+            tmp2 = tf.contrib.distributions.Bernoulli(probs=prob).sample([])
+        else:
+            tmp2 = 0
+
+        if tmp2 == 0:
+            if default_value is not None:
+                return default_value
+        else:
+            tmp1 = tf.cond(spread > 0.0,
+                           lambda: tf.random_uniform([], mean - spread, mean + spread),
+                           lambda: mean)
+        if exp:
+            tmp1 = tf.exp(tmp1)
+        value = tmp1
+    elif rand_type == 'gaussian_bernoulli':
+        tmp1 = 0.0
+        tmp2 = 0
+        if prob > 0.0:
+            tmp2 = tf.contrib.distributions.Bernoulli(probs=prob).sample([])
+        else:
+            tmp2 = 0
+
+        if tmp2 == 0:
+            if default_value is not None:
+                return default_value
+        else:
+            tmp1 = tf.cond(spread > 0.0,
+                           lambda: tf.random_normal([], mean, spread),
+                           lambda: mean)
+        if exp:
+            tmp1 = tf.exp(tmp1)
+        value = tmp1
+    else:
+        raise ValueError('Unknown distribution type %s.' % rand_type)
+    return value
 
 
 def load_batch(dataset_config, split_name, global_step):
@@ -162,38 +240,90 @@ def load_batch(dataset_config, split_name, global_step):
             image_a = image_a / 255.0
             image_b = image_b / 255.0
 
-        image_as, image_bs, flows = tf.train.batch(
-            [image_a, image_b, flow],
-            batch_size=dataset_config['BATCH_SIZE'],
-            capacity=dataset_config['BATCH_SIZE'] * 4,
-            num_threads=num_threads,
-            allow_smaller_final_batch=False)
-
         crop = [dataset_config['PREPROCESS']['crop_height'],
                 dataset_config['PREPROCESS']['crop_width']]
         config_a = config_to_arrays(dataset_config['PREPROCESS']['image_a'])
         config_b = config_to_arrays(dataset_config['PREPROCESS']['image_b'])
 
+        image_as, image_bs, flows = map(lambda x: tf.expand_dims(x, 0), [image_a, image_b, flow])
+
         # Perform data augmentation on GPU
-        image_as, image_bs, transforms_from_a, transforms_from_b = \
-            _preprocessing_ops.data_augmentation(image_as,
-                                                 image_bs,
-                                                 crop,
-                                                 config_a['name'],
-                                                 config_a['rand_type'],
-                                                 config_a['exp'],
-                                                 config_a['mean'],
-                                                 config_a['spread'],
-                                                 config_a['prob'],
-                                                 config_b['name'],
-                                                 config_b['rand_type'],
-                                                 config_b['exp'],
-                                                 config_b['mean'],
-                                                 config_b['spread'],
-                                                 config_b['prob'])
+        with tf.device('/cpu:0'):
+            image_as, image_bs, transforms_from_a, transforms_from_b = \
+                _preprocessing_ops.data_augmentation(image_as,
+                                                     image_bs,
+                                                     global_step,
+                                                     crop,
+                                                     config_a['name'],
+                                                     config_a['rand_type'],
+                                                     config_a['exp'],
+                                                     config_a['mean'],
+                                                     config_a['spread'],
+                                                     config_a['prob'],
+                                                     config_a['coeff_schedule'],
+                                                     config_b['name'],
+                                                     config_b['rand_type'],
+                                                     config_b['exp'],
+                                                     config_b['mean'],
+                                                     config_b['spread'],
+                                                     config_b['prob'],
+                                                     config_b['coeff_schedule'])
 
-        # Perform flow augmentation using spatial parameters from data augmentation
-        flows = _preprocessing_ops.flow_augmentation(
-            flows, transforms_from_a, transforms_from_b, crop)
+            noise_coeff_a = None
+            noise_coeff_b = None
 
-        return image_as, image_bs, flows
+            # Generate and apply noise coeff for A if defined in A params
+            if 'noise' in dataset_config['PREPROCESS']['image_a']:
+                discount_coeff = tf.constant(1.0)
+                if 'coeff_schedule_param' in dataset_config['PREPROCESS']['image_a']:
+                    initial_coeff = dataset_config['PREPROCESS']['image_a']['coeff_schedule_param']['initial_coeff']
+                    final_coeff = dataset_config['PREPROCESS']['image_a']['coeff_schedule_param']['final_coeff']
+                    half_life = dataset_config['PREPROCESS']['image_a']['coeff_schedule_param']['half_life']
+                    discount_coeff = initial_coeff + \
+                        (final_coeff - initial_coeff) * \
+                        (2.0 / (1.0 + exp(-1.0986 * global_step / half_life)) - 1.0)
+
+                noise_coeff_a = _generate_coeff(
+                    dataset_config['PREPROCESS']['image_a']['noise'], discount_coeff)
+                noise_a = tf.random_normal(shape=tf.shape(image_as),
+                                           mean=0.0, stddev=noise_coeff_a,
+                                           dtype=tf.float32)
+                image_as = tf.clip_by_value(image_as + noise_a, 0.0, 1.0)
+
+            # Generate noise coeff for B if defined in B params
+            if 'noise' in dataset_config['PREPROCESS']['image_b']:
+                discount_coeff = tf.constant(1.0)
+                if 'coeff_schedule_param' in dataset_config['PREPROCESS']['image_b']:
+                    initial_coeff = dataset_config['PREPROCESS']['image_b']['coeff_schedule_param']['initial_coeff']
+                    final_coeff = dataset_config['PREPROCESS']['image_b']['coeff_schedule_param']['final_coeff']
+                    half_life = dataset_config['PREPROCESS']['image_b']['coeff_schedule_param']['half_life']
+                    discount_coeff = initial_coeff + \
+                        (final_coeff - initial_coeff) * \
+                        (2.0 / (1.0 + exp(-1.0986 * global_step / half_life)) - 1.0)
+                noise_coeff_b = _generate_coeff(
+                    dataset_config['PREPROCESS']['image_b']['noise'], discount_coeff)
+
+            # Combine coeff from a with coeff from b
+            if noise_coeff_a is not None:
+                if noise_coeff_b is not None:
+                    noise_coeff_b = noise_coeff_a * noise_coeff_b
+                else:
+                    noise_coeff_b = noise_coeff_a
+
+            # Add noise to B if needed
+            if noise_coeff_b is not None:
+                noise_b = tf.random_normal(shape=tf.shape(image_bs),
+                                           mean=0.0, stddev=noise_coeff_b,
+                                           dtype=tf.float32)
+                image_bs = tf.clip_by_value(image_bs + noise_b, 0.0, 1.0)
+
+                # Perform flow augmentation using spatial parameters from data augmentation
+            flows = _preprocessing_ops.flow_augmentation(
+                flows, transforms_from_a, transforms_from_b, crop)
+
+            return tf.train.batch([image_as, image_bs, flows],
+                                  enqueue_many=True,
+                                  batch_size=dataset_config['BATCH_SIZE'],
+                                  capacity=dataset_config['BATCH_SIZE'] * 4,
+                                  num_threads=num_threads,
+                                  allow_smaller_final_batch=False)

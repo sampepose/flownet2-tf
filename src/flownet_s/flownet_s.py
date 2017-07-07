@@ -41,13 +41,11 @@ class FlowNetS(Net):
                         conv_3 = slim.conv2d(pad(conv_2, 2), 256, 5, scope='conv3')
 
                     conv3_1 = slim.conv2d(pad(conv_3), 256, 3, scope='conv3_1')
-
                     with slim.arg_scope([slim.conv2d], num_outputs=512, kernel_size=3):
                         conv4 = slim.conv2d(pad(conv3_1), stride=2, scope='conv4')
                         conv4_1 = slim.conv2d(pad(conv4), scope='conv4_1')
                         conv5 = slim.conv2d(pad(conv4_1), stride=2, scope='conv5')
                         conv5_1 = slim.conv2d(pad(conv5), scope='conv5_1')
-
                     conv6 = slim.conv2d(pad(conv5_1), 1024, 3, stride=2, scope='conv6')
                     conv6_1 = slim.conv2d(pad(conv6), 1024, 3, scope='conv6_1')
 

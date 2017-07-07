@@ -136,21 +136,7 @@ FLYING_CHAIRS_DATASET_CONFIG = {
                 'spread': 0.02,
                 'prob': 1.0,
             },
-            'color1': {
-                'rand_type': "gaussian_bernoulli",
-                'exp': True,
-                'mean': 0,
-                'spread': 0.02,
-                'prob': 1.0,
-            },
-            'color2': {
-                'rand_type': "gaussian_bernoulli",
-                'exp': True,
-                'mean': 0,
-                'spread': 0.02,
-                'prob': 1.0,
-            },
-            'color3': {
+            'color': {
                 'rand_type': "gaussian_bernoulli",
                 'exp': True,
                 'mean': 0,

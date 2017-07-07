@@ -1,42 +1,12 @@
 from ..net import Net, Mode
 from ..utils import LeakyReLU, average_endpoint_error, pad, antipad
+from ..correlation import correlation
 import math
 import tensorflow as tf
 slim = tf.contrib.slim
 
 _downsample = tf.load_op_library(
     tf.resource_loader.get_path_to_datafile("../ops/build/downsample.so"))
-
-
-def CrossCorrelation(feature_map_a, feature_map_b, maximum_displacement, striding):
-    '''
-    Returns cross correlation given feature maps A and B of size W x H x C.
-    To save memory, the correlation is only computed for locations within
-    a [-maximum_displacement, +maximum_displacement] square surrounding x1 in feature map B
-    for each location x1 in feature map A. Furthermore, striding is applied to limit the number of
-    locations visited in feature map B within the maximum_displacement neighborhood.
-    '''
-
-    BATCH_SIZE, HEIGHT, WIDTH, _ = feature_map_a.shape.as_list()
-    out = []
-
-    depth = int(math.floor((2.0 * maximum_displacement + 1) / striding) ** 2)
-
-    for i in range(-maximum_displacement + 1, maximum_displacement, striding):  # height
-        for j in range(-maximum_displacement + 1, maximum_displacement, striding):  # width
-            padded_a = tf.pad(feature_map_a, [[0, 0], [0, abs(i)], [0, abs(j)], [0, 0]])
-            padded_b = tf.pad(feature_map_b, [[0, 0], [abs(i), 0], [abs(j), 0], [0, 0]])
-            m = padded_a * padded_b
-
-            height_start_idx = 0 if i <= 0 else i
-            height_end_idx = height_start_idx + HEIGHT
-            width_start_idx = 0 if j <= 0 else j
-            width_end_idx = width_start_idx + WIDTH
-            cut = m[:, height_start_idx:height_end_idx, width_start_idx:width_end_idx, :]
-
-            final = tf.reduce_sum(cut, 3)
-            out.append(final)
-    return tf.stack(out, 3)
 
 
 class FlowNetC(Net):
@@ -66,12 +36,12 @@ class FlowNetC(Net):
                     conv_b_3 = slim.conv2d(pad(conv_b_2, 2), 256, 5, scope='conv3', reuse=True)
 
                     # Compute cross correlation with leaky relu activation
-                    cc = CrossCorrelation(conv_b_3, conv_a_3, 21, 2)
+                    cc = correlation(conv_a_3, conv_b_3, 1, 20, 1, 2, 20)
                     cc_relu = LeakyReLU(cc)
 
                 # Combine cross correlation results with convolution of feature map A
                 netA_conv = slim.conv2d(conv_a_3, 32, 1, scope='conv_redir')
-                net = tf.concat([cc_relu, netA_conv], axis=3)  # Concatenate along the channels axis
+                net = tf.concat([netA_conv, cc_relu], axis=3)  # Concatenate along the channels axis
 
                 conv3_1 = slim.conv2d(pad(net), 256, 3, scope='conv3_1')
                 with slim.arg_scope([slim.conv2d], num_outputs=512, kernel_size=3):
@@ -79,8 +49,8 @@ class FlowNetC(Net):
                     conv4_1 = slim.conv2d(pad(conv4), scope='conv4_1')
                     conv5 = slim.conv2d(pad(conv4_1), stride=2, scope='conv5')
                     conv5_1 = slim.conv2d(pad(conv5), scope='conv5_1')
-                net = slim.conv2d(pad(conv5_1), 1024, 3, stride=2, scope='conv6')
-                conv6_1 = slim.conv2d(pad(net), 1024, 3, scope='conv6_1')
+                conv6 = slim.conv2d(pad(conv5_1), 1024, 3, stride=2, scope='conv6')
+                conv6_1 = slim.conv2d(pad(conv6), 1024, 3, scope='conv6_1')
 
                 """ START: Refinement Network """
                 with slim.arg_scope([slim.conv2d_transpose], biases_initializer=None):

@@ -8,9 +8,8 @@
 #include "tensorflow/core/platform/types.h"
 
 namespace tensorflow {
-typedef Eigen::GpuDevice GPUDevice;
-
-bool FillFlowAugmentation(const GPUDevice& device,
+template<class Device>
+void FillFlowAugmentation(const Device& device,
                           typename TTypes<float, 4>::Tensor output,
                           typename TTypes<float, 4>::ConstTensor flows,
                           typename TTypes<float, 2>::ConstTensor transforms_from_a,

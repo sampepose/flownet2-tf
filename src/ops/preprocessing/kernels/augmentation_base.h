@@ -43,16 +43,25 @@ class OptionalType {
 
 class AugmentationCoeff {
   public:
+    // Spatial Types
     OptionalType<float>dx;
     OptionalType<float>dy;
     OptionalType<float>angle;
     OptionalType<float>zoom_x;
     OptionalType<float>zoom_y;
 
-    AugmentationCoeff() : dx(0.0), dy(0.0), angle(0.0), zoom_x(1.0), zoom_y(1.0) {}
+    // Chromatic Types
+    OptionalType<float>gamma;
+    OptionalType<float>brightness;
+    OptionalType<float>contrast;
+    OptionalType<float>color1;
+    OptionalType<float>color2;
+    OptionalType<float>color3;
 
-    AugmentationCoeff(const AugmentationCoeff& coeff) : dx(0.0), dy(0.0), angle(0.0), zoom_x(1.0),
-      zoom_y(1.0) {
+    AugmentationCoeff() : dx(0.0), dy(0.0), angle(0.0), zoom_x(1.0), zoom_y(1.0), gamma(1.0),
+      brightness(0.0), contrast(1.0), color1(1.0), color2(1.0), color3(1.0) {}
+
+    AugmentationCoeff(const AugmentationCoeff& coeff) : AugmentationCoeff() {
       replace_with(coeff);
     }
 
@@ -75,10 +84,18 @@ class AugmentationParams {
   public:
     int crop_height;
     int crop_width;
+
+    // Spatial options
     OptionalType<struct AugmentationParam>translate;
     OptionalType<struct AugmentationParam>rotate;
     OptionalType<struct AugmentationParam>zoom;
     OptionalType<struct AugmentationParam>squeeze;
+
+    // Chromatic options
+    OptionalType<struct AugmentationParam>gamma;
+    OptionalType<struct AugmentationParam>brightness;
+    OptionalType<struct AugmentationParam>contrast;
+    OptionalType<struct AugmentationParam>color;
 
     inline AugmentationParams(int                     crop_height,
                               int                     crop_width,
@@ -93,7 +110,11 @@ class AugmentationParams {
       translate(AugmentationParam()),
       rotate(AugmentationParam()),
       zoom(AugmentationParam()),
-      squeeze(AugmentationParam()) {
+      squeeze(AugmentationParam()),
+      gamma(AugmentationParam()),
+      brightness(AugmentationParam()),
+      contrast(AugmentationParam()),
+      color(AugmentationParam()) {
       for (int i = 0; i < params_name.size(); i++) {
         const std::string name      = params_name[i];
         const std::string rand_type = params_rand_type[i];
@@ -112,6 +133,16 @@ class AugmentationParams {
           this->zoom = param;
         }  else if (name == "squeeze") {
           this->squeeze = param;
+        } else if (name == "noise") {
+          // NoOp: We handle noise on the Python side
+        } else if (name == "gamma") {
+          this->gamma = param;
+        } else if (name == "brightness") {
+          this->brightness = param;
+        } else if (name == "contrast") {
+          this->contrast = param;
+        } else if (name == "color") {
+          this->color = param;
         } else {
           std::cout << "Ignoring unknown augmentation parameter: " << name << std::endl;
         }
@@ -120,6 +151,10 @@ class AugmentationParams {
 
     bool should_do_spatial_transform() {
       return this->translate || this->rotate || this->zoom || this->squeeze;
+    }
+
+    bool should_do_chromatic_transform() {
+      return this->gamma || this->brightness || this->contrast || this->color;
     }
 };
 
@@ -159,21 +194,27 @@ class AugmentationLayerBase {
 
     // TODO: Class ChromaticCoeffs
 
-    // TODO: Class EffectCoeffs
-
     static float rng_generate(const AugmentationParam& param,
+                              float                    discount_coeff,
                               const float              default_value);
 
-    static void  clear_spatial_coeffs(AugmentationCoeff& coeff);
-    static void  generate_spatial_coeffs(const AugmentationParams& aug,
-                                         AugmentationCoeff       & coeff);
-    static void  generate_valid_spatial_coeffs(const AugmentationParams& aug,
-                                               AugmentationCoeff       & coeff,
-                                               int                       src_width,
-                                               int                       src_height,
-                                               int                       out_width,
-                                               int                       out_height);
+    static void clear_spatial_coeffs(AugmentationCoeff& coeff);
+    static void generate_chromatic_coeffs(float                     discount_coeff,
+                                          const AugmentationParams& aug,
+                                          AugmentationCoeff       & coeff);
+    static void generate_spatial_coeffs(float                     discount_coeff,
+                                        const AugmentationParams& aug,
+                                        AugmentationCoeff       & coeff);
+    static void generate_valid_spatial_coeffs(float                     discount_coeff,
+                                              const AugmentationParams& aug,
+                                              AugmentationCoeff       & coeff,
+                                              int                       src_width,
+                                              int                       src_height,
+                                              int                       out_width,
+                                              int                       out_height);
 
+    static void copy_chromatic_coeffs_to_tensor(const std::vector<AugmentationCoeff>& coeff_arr,
+                                                typename TTypes<float, 2>::Tensor& out);
     static void copy_spatial_coeffs_to_tensor(const std::vector<AugmentationCoeff>& coeff_arr,
                                               const int out_width,
                                               const int out_height,
