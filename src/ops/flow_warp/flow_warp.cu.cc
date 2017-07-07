@@ -14,9 +14,6 @@
 
 #define RA_TILE 32
 #define RA_ROWS 8
-#define FW_THREADS 32
-#define FW_TILE_X FW_THREADS
-#define FW_TILE_C FW_THREADS
 
 namespace tensorflow {
 typedef Eigen::GpuDevice GPUDevice;
