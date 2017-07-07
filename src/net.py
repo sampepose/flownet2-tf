@@ -60,12 +60,17 @@ class Net(object):
             'input_b': tf.expand_dims(tf.constant(input_b, dtype=tf.float32), 0),
         }
         predictions = self.model(inputs, training_schedule)
+        pred_flow = predictions['flow']
+
+        # Scale output flow relative to input size
+        pred_flow = pred_flow * [inputs['input_a'].shape.as_list()[2],
+                                 inputs['input_a'].shape.as_list()[1]]
 
         saver = tf.train.Saver()
 
         with tf.Session() as sess:
             saver.restore(sess, checkpoint)
-            pred_flow = sess.run(predictions['flow'])[0, :, :, :]
+            pred_flow = sess.run(pred_flow)[0, :, :, :]
 
             unique_name = 'flow-' + str(uuid.uuid4())
             if save_image:

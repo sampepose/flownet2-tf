@@ -109,11 +109,6 @@ class FlowNetS(Net):
                     flow = tf.image.resize_bilinear(flow,
                                                     tf.stack([height, width]),
                                                     align_corners=True)
-                    if not stacked:
-                        if self.mode == Mode.TEST:
-                            # TODO: This isn't right. It needs a 'diagonal' weight filler?
-                            flow = slim.conv2d(flow, 2, 1, padding='VALID',
-                                               scope="scale_conv1", activation_fn=None)
 
                     return {
                         'predict_flow6': predict_flow6,
