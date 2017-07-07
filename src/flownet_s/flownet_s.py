@@ -11,7 +11,7 @@ class FlowNetS(Net):
     def __init__(self, mode=Mode.TRAIN, debug=False):
         super(FlowNetS, self).__init__(mode=mode, debug=debug)
 
-    def model(self, inputs, training_schedule):
+    def model(self, inputs, training_schedule, trainable=True):
         _, height, width, _ = inputs['input_a'].shape.as_list()
         stacked = False
         with tf.variable_scope('FlowNetS'):
@@ -25,6 +25,8 @@ class FlowNetS(Net):
             else:
                 concat_inputs = tf.concat([inputs['input_a'], inputs['input_b']], axis=3)
             with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],
+                                # Only backprop this network if trainable
+                                trainable=trainable,
                                 # He (aka MSRA) weight initialization
                                 weights_initializer=slim.variance_scaling_initializer(),
                                 activation_fn=LeakyReLU,

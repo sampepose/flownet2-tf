@@ -24,7 +24,7 @@ class Net(object):
         self.debug = debug
 
     @abc.abstractmethod
-    def model(self, inputs, training_schedule):
+    def model(self, inputs, training_schedule, trainable=True):
         """
         Defines the model and returns a tuple of Tensors needed for calculating the loss.
         """
