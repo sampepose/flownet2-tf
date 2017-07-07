@@ -7,6 +7,6 @@ Instructions:
 
 3) Move the contents of this directory (scripts/caffe) to flownet2/scripts.
 
-4) run the bash script: `sh ./convert_caffe_weights_to_tf.sh {C|S|2}`
+4) run the bash script: `sh ./convert_caffe_weights_to_tf.sh {C|S|CS|CSS|2}`
 
 The weights will be saved in the scripts directory alongside the bash script.

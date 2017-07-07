@@ -8,16 +8,27 @@ SCRIPTPATH=$( cd $(dirname $0) ; pwd -P )
 [ "$#" -eq 1 ] || die "1 argument required, $# provided"
 case $1 in
     "C" )
-    tmp="${SCRIPTPATH}/flownet-C.npy"
+    mkdir "${SCRIPTPATH}/FlowNetC/"
+    tmp="${SCRIPTPATH}/FlowNetC/flownet-C.npy"
     ;;
     "S" )
-    tmp="${SCRIPTPATH}/flownet-S.npy"
+    mkdir "${SCRIPTPATH}/FlowNetS/"
+    tmp="${SCRIPTPATH}/FlowNetS/flownet-S.npy"
+    ;;
+    "CS" )
+    mkdir "${SCRIPTPATH}/FlowNetCS/"
+    tmp="${SCRIPTPATH}/FlowNetCS/flownet-CS.npy"
+    ;;
+    "CSS" )
+    mkdir "${SCRIPTPATH}/FlowNetCSS/"
+    tmp="${SCRIPTPATH}/FlowNetCSS/flownet-CSS.npy"
     ;;
     "2" )
-    tmp="${SCRIPTPATH}/flownet-2.npy"
+    mkdir "${SCRIPTPATH}/FlowNet2/"
+    tmp="${SCRIPTPATH}/FlowNet2/flownet-2.npy"
     ;;
     * )
-    die "argument must be C or S or 2"
+    die "argument must be C, S, CS, CSS or 2"
     ;;
 esac
 
