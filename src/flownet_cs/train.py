@@ -17,5 +17,5 @@ net.train(
     input_b=input_b,
     flow=flow,
     # Load trained weights for C part of network
-    checkpoints={'./checkpoints/FlowNetC/flownet-C.ckpt-0': 'FlowNetC'}
+    checkpoints={'./checkpoints/FlowNetC/flownet-C.ckpt-0': ('FlowNetCS/FlowNetC', 'FlowNetCS')}
 )
