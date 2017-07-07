@@ -1,6 +1,0 @@
-checkpoints/FlowNetC/flownet-C.ckpt.data-00000-of-00001 filter=lfs diff=lfs merge=lfs -text
-checkpoints/FlowNetC/flownet-C.ckpt.index filter=lfs diff=lfs merge=lfs -text
-checkpoints/FlowNetC/flownet-C.ckpt.meta filter=lfs diff=lfs merge=lfs -text
-checkpoints/FlowNetS/flownet-S.ckpt-0.data-00000-of-00001 filter=lfs diff=lfs merge=lfs -text
-checkpoints/FlowNetS/flownet-S.ckpt-0.index filter=lfs diff=lfs merge=lfs -text
-checkpoints/FlowNetS/flownet-S.ckpt-0.meta filter=lfs diff=lfs merge=lfs -text
