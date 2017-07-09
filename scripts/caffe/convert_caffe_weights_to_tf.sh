@@ -23,12 +23,20 @@ case $1 in
     mkdir "${SCRIPTPATH}/FlowNetCSS/"
     tmp="${SCRIPTPATH}/FlowNetCSS/flownet-CSS.npy"
     ;;
+    "CSS-ft-sd" )
+    mkdir "${SCRIPTPATH}/FlowNetCSS-ft-sd/"
+    tmp="${SCRIPTPATH}/FlowNetCSS-ft-sd/flownet-CSS-ft-sd.npy"
+    ;;
+    "SD" )
+    mkdir "${SCRIPTPATH}/FlowNetSD/"
+    tmp="${SCRIPTPATH}/FlowNetSD/flownet-SD.npy"
+    ;;
     "2" )
     mkdir "${SCRIPTPATH}/FlowNet2/"
     tmp="${SCRIPTPATH}/FlowNet2/flownet-2.npy"
     ;;
     * )
-    die "argument must be C, S, CS, CSS or 2"
+    die "argument must be C, S, CS, CSS, CSS-ft-sd, SD or 2"
     ;;
 esac
 
