@@ -3,8 +3,10 @@ from ..flownet_css.flownet_css import FlowNetCSS
 from ..flownet_sd.flownet_sd import FlowNetSD
 from ..flow_warp import flow_warp
 from ..utils import LeakyReLU, average_endpoint_error, pad, antipad
+from ..downsample import downsample
 import tensorflow as tf
 slim = tf.contrib.slim
+
 
 class FlowNet2(Net):
 
@@ -97,8 +99,18 @@ class FlowNet2(Net):
 
                     flow = tf.image.resize_bilinear(
                         predict_flow0, tf.stack([height, width]), align_corners=True)
-                    return {'flow': flow}
+                    return {
+                        'predict_flow0': predict_flow0,
+                        'flow': flow,
+                    }
 
     def loss(self, flow, predictions):
-        # TODO: define loss
-        pass
+        # L2 loss between predict_flow0, true flow (weighted w/ 0.005)
+        predict_flow0 = predictions['predict_flow0']
+        size = [predict_flow0.shape[1], predict_flow0.shape[2]]
+        downsampled_flow0 = downsample(flow, size)
+        loss = average_endpoint_error(downsampled_flow0, predict_flow0)
+        tf.losses.add_loss(loss)
+
+        # Return the 'total' loss: loss fns + regularization terms defined in the model
+        return tf.losses.get_total_loss()
