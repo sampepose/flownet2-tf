@@ -62,10 +62,6 @@ class Net(object):
         predictions = self.model(inputs, training_schedule)
         pred_flow = predictions['flow']
 
-        # Scale output flow relative to input size
-        pred_flow = pred_flow * [inputs['input_a'].shape.as_list()[2],
-                                 inputs['input_a'].shape.as_list()[1]]
-
         saver = tf.train.Saver()
 
         with tf.Session() as sess:
