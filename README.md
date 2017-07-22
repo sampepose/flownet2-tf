@@ -37,6 +37,8 @@ Available models:
 * `flownet_css` (can edit test.py to use css-ft-sd weights)
 * `flownet_sd`
 
+If installation is successful, you should predict the following flow from samples/0img0.ppm:
+![FlowNet2 Sample Prediction](/data/samples/0flow-pred-flownet2.png?raw=true)
 
 ### Training
 If you would like to train any of the networks from scratch (replace `flownet2` with the appropriate model):
