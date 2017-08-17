@@ -10,6 +10,6 @@ def flow_warp(image, flow):
 
 @tf.RegisterGradient("FlowWarp")
 def _flow_warp_grad(flow_warp_op, gradients):
-    return _correlation_ops.correlation_grad(flow_warp_op.inputs[0],
-                                             flow_warp_op.inputs[1],
-                                             gradients)
+    return _flow_warp_ops.flow_warp_grad(flow_warp_op.inputs[0],
+                                         flow_warp_op.inputs[1],
+                                         gradients)
