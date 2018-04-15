@@ -339,7 +339,7 @@ void AugmentationLayerBase::generate_valid_spatial_coeffs(
 
         // rotate
         x2 = cos(coeff.angle()) * x1 - sin(coeff.angle()) * y1;
-        y2 = sin(coeff.angle()) * x1 + sin(coeff.angle()) * y1;
+        y2 = sin(coeff.angle()) * x1 + cos(coeff.angle()) * y1;
 
         // translate
         x2 = x2 + coeff.dx() * out_width;
