@@ -34,7 +34,7 @@ class FlowWarpGradKernel : public OpKernel {
       Tensor *image_grad_t;
       Tensor *flow_grad_t;
       OP_REQUIRES_OK(ctx, ctx->allocate_output(0, image_t.shape(), &image_grad_t));
-      OP_REQUIRES_OK(ctx, ctx->allocate_output(0, flow_t.shape(), &flow_grad_t));
+      OP_REQUIRES_OK(ctx, ctx->allocate_output(1, flow_t.shape(), &flow_grad_t));
 
       auto image      = image_t.tensor<float, 4>();
       auto flow       = flow_t.tensor<float, 4>();
